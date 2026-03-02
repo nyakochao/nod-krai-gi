@@ -4,7 +4,7 @@ use crate::TomlConfig;
 
 #[derive(Deserialize)]
 pub struct DispatchConfig {
-    pub http_addr: SocketAddr,
+    pub dispatch_host: SocketAddr,
     pub forbid_first_dispatch: bool,
     pub region: RegionConfig,
 }

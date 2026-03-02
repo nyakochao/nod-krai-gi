@@ -1,4 +1,4 @@
-http_addr = "127.0.0.1:21001"
+dispatch_host = "127.0.0.1:21001"
 forbid_first_dispatch = false
 
 [region]

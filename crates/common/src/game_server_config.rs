@@ -16,7 +16,7 @@ pub struct GameServerConfig {
 
 #[derive(Deserialize)]
 pub struct NetworkSettings {
-    pub udp_host: String,
+    pub gate_host: String,
 }
 
 #[derive(Deserialize)]

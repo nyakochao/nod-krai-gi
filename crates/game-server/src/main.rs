@@ -134,7 +134,7 @@ async fn main() -> Result<()> {
     };
 
     let socket = Arc::new(
-        UdpSocket::bind(GAME_SERVER_CONFIG.network.udp_host.clone())
+        UdpSocket::bind(GAME_SERVER_CONFIG.network.gate_host.clone())
             .await
             .unwrap(),
     );
