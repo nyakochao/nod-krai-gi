@@ -30,6 +30,12 @@ pub struct GroupId(pub u32);
 pub struct ConfigId(pub u32);
 
 #[derive(Component)]
+pub struct DropTag(pub Option<String>);
+
+#[derive(Component)]
+pub struct ChestDropId(pub u32);
+
+#[derive(Component)]
 pub struct Level(pub u32);
 
 #[derive(Component)]

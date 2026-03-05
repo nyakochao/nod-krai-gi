@@ -2,16 +2,16 @@ use super::ability::Ability;
 use crate::util::{create_fight_properties_by_gadget_config, to_protocol_entity_id};
 use crate::{common::*, int_prop_pair, transform::Transform, EntityDisappearEvent};
 use bevy_ecs::{prelude::*, query::QueryData};
+use nod_krai_gi_data::custom::{resolve_drop, CombinedDrop};
 use nod_krai_gi_data::excel::gadget_excel_config_collection;
 use nod_krai_gi_event::entity::GadgetInteractEvent;
-use nod_krai_gi_event::inventory::ItemAddEvent;
+use nod_krai_gi_event::inventory::{ItemAddEvent, ItemDropEvent};
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_proto::normal::item::Detail;
 use nod_krai_gi_proto::normal::scene_gadget_info::Content;
 use nod_krai_gi_proto::normal::{ProtEntityType, VisionType};
 use nod_krai_gi_proto::server_only::VectorBin;
 use std::collections::HashMap;
-use tracing::debug;
 
 #[derive(Component)]
 pub struct GadgetID(pub u32);
@@ -33,6 +33,8 @@ pub struct GadgetBundle {
     pub level: Level,
     pub interactive: Interactive,
     pub gadget_content: GadgetContent,
+    pub drop_tag: DropTag,
+    pub chest_drop_id: ChestDropId,
     pub state: State,
     pub transform: Transform,
     pub fight_properties: FightProperties,
@@ -51,6 +53,8 @@ pub struct GadgetQueryReadOnly {
     pub level: &'static Level,
     pub interactive: &'static Interactive,
     pub gadget_content: &'static GadgetContent,
+    pub drop_tag: &'static DropTag,
+    pub chest_drop_id: &'static ChestDropId,
     pub state: &'static State,
     pub transform: &'static Transform,
     pub fight_properties: &'static FightProperties,
@@ -181,15 +185,17 @@ pub fn spawn_gadget_entity(
     rotation: VectorBin,
     gadget_id: u32,
     level: u32,
-    state: u32,
     is_interactive: bool,
     gadget_content: Option<Content>,
+    drop_tag: Option<String>,
+    chest_drop_id: u32,
+    state: u32,
 ) -> Option<Entity> {
     let gadget_excel_config_collection_clone =
         std::sync::Arc::clone(gadget_excel_config_collection::get());
 
     let Some(config) = gadget_excel_config_collection_clone.get(&gadget_id) else {
-        debug!("gadget config for id {gadget_id} not found");
+        tracing::debug!("gadget config for id {gadget_id} not found");
         return None;
     };
 
@@ -211,6 +217,8 @@ pub fn spawn_gadget_entity(
         level: Level(level),
         interactive: Interactive(config.is_interactive || is_interactive),
         gadget_content: GadgetContent(gadget_content),
+        drop_tag: DropTag(drop_tag),
+        chest_drop_id: ChestDropId(chest_drop_id),
         state: State(state),
         transform: Transform { position, rotation },
         fight_properties,
@@ -228,8 +236,9 @@ pub fn handle_gadget_interact(
     mut events: MessageReader<GadgetInteractEvent>,
     index: Res<EntityById>,
     mut commands: Commands,
-    gadgets: Query<&GadgetContent>,
+    gadgets: Query<(&Level, &Transform, &GadgetContent, &DropTag, &ChestDropId)>,
     mut item_add_events: MessageWriter<ItemAddEvent>,
+    mut item_drop_events: MessageWriter<ItemDropEvent>,
     mut disappear_events: MessageWriter<EntityDisappearEvent>,
 ) {
     let gather_excel_config_collection_clone =
@@ -267,61 +276,108 @@ pub fn handle_gadget_interact(
                 }
 
                 match gadgets.get(*entity) {
-                    Ok(gadget_content) => match &gadget_content.0 {
-                        None => {}
-                        Some(gadget_content) => match gadget_content {
-                            Content::NightCrowGadgetInfo(_) => {}
-                            Content::DeshretObeliskGadgetInfo(_) => {}
-                            Content::AbilityGadget(_) => {}
-                            Content::FishPoolInfo(_) => {}
-                            Content::FoundationInfo(_) => {}
-                            Content::Weather(_) => {}
-                            Content::ShellInfo(_) => {}
-                            Content::VehicleInfo(_) => {}
-                            Content::StatueGadget(_) => {}
-                            Content::GeneralReward(_) => {}
-                            Content::RoguelikeGadgetInfo(_) => {}
-                            Content::CoinCollectOperatorInfo(_) => {}
-                            Content::Worktop(_) => {}
-                            Content::OfferingInfo(_) => {}
-                            Content::TrifleGadget(trifle_gadget) => match &trifle_gadget.item {
-                                None => {}
-                                Some(item) => {
-                                    let mut count = 1;
-                                    match &item.detail {
-                                        None => {}
-                                        Some(detail) => match detail {
-                                            Detail::Material(material) => count = material.count,
-                                            _ => {}
-                                        },
+                    Ok((level, transform, gadget_content, drop_tag, chest_drop_id)) => {
+                        let mut drop_id = 0;
+                        match &drop_tag.0 {
+                            None => {}
+                            Some(drop_tag) => {
+                                match CombinedDrop::get_drop_config(drop_tag.clone(), level.0) {
+                                    None => {}
+                                    Some(drop_config) => {
+                                        drop_id = drop_config.drop_id;
                                     }
-                                    item_add_events.write(ItemAddEvent(
-                                        *player_uid,
-                                        vec![(
-                                            item.item_id,
-                                            Some(count),
-                                            None,
-                                            None,
-                                            None,
-                                            HashMap::new(),
-                                        )],
-                                    ));
-
-                                    disappear_events.write(EntityDisappearEvent(
-                                        *gadget_entity_id,
-                                        VisionType::VisionGatherEscape.into(),
-                                    ));
                                 }
-                            },
-                            Content::MpPlayReward(_) => {}
-                            Content::GatherGadget(_) => {}
-                            Content::ScreenInfo(_) => {}
-                            Content::CustomGadgetTreeInfo(_) => {}
-                            Content::BlossomChest(_) => {}
-                            Content::ClientGadget(_) => {}
-                            Content::BossChest(_) => {}
-                        },
-                    },
+                            }
+                        }
+                        if drop_id == 0 {
+                            drop_id = chest_drop_id.0;
+                        }
+                        if drop_id != 0 {
+                            tracing::debug!("drop_id is {}", drop_id);
+                            let drop_vec = resolve_drop(drop_id, 1);
+                            tracing::debug!("drop_vec is {:#?}", drop_vec);
+                            if !drop_vec.is_empty() {
+                                item_drop_events.write(ItemDropEvent(
+                                    *player_uid,
+                                    Some((
+                                        transform.position.x,
+                                        transform.position.y + 0.5,
+                                        transform.position.z,
+                                    )),
+                                    drop_vec,
+                                ));
+                            }
+
+                            disappear_events.write(EntityDisappearEvent(
+                                *gadget_entity_id,
+                                VisionType::VisionGatherEscape.into(),
+                            ));
+                            continue;
+                        }
+
+                        match &gadget_content.0 {
+                            None => {}
+                            Some(gadget_content) => {
+                                match gadget_content {
+                                    Content::NightCrowGadgetInfo(_) => {}
+                                    Content::DeshretObeliskGadgetInfo(_) => {}
+                                    Content::AbilityGadget(_) => {}
+                                    Content::FishPoolInfo(_) => {}
+                                    Content::FoundationInfo(_) => {}
+                                    Content::Weather(_) => {}
+                                    Content::ShellInfo(_) => {}
+                                    Content::VehicleInfo(_) => {}
+                                    Content::StatueGadget(_) => {}
+                                    Content::GeneralReward(_) => {}
+                                    Content::RoguelikeGadgetInfo(_) => {}
+                                    Content::CoinCollectOperatorInfo(_) => {}
+                                    Content::Worktop(_) => {}
+                                    Content::OfferingInfo(_) => {}
+                                    Content::TrifleGadget(trifle_gadget) => {
+                                        match &trifle_gadget.item {
+                                            None => {}
+                                            Some(item) => {
+                                                let mut count = 1;
+                                                match &item.detail {
+                                                    None => {}
+                                                    Some(detail) => match detail {
+                                                        Detail::Material(material) => {
+                                                            count = material.count
+                                                        }
+                                                        _ => {}
+                                                    },
+                                                }
+                                                item_add_events.write(ItemAddEvent(
+                                                    *player_uid,
+                                                    vec![(
+                                                        item.item_id,
+                                                        Some(count),
+                                                        None,
+                                                        None,
+                                                        None,
+                                                        HashMap::new(),
+                                                    )],
+                                                ));
+
+                                                disappear_events.write(EntityDisappearEvent(
+                                                    *gadget_entity_id,
+                                                    VisionType::VisionGatherEscape.into(),
+                                                ));
+                                            }
+                                        }
+                                    }
+                                    Content::MpPlayReward(_) => {}
+                                    Content::GatherGadget(_) => {}
+                                    Content::ScreenInfo(_) => {}
+                                    Content::CustomGadgetTreeInfo(_) => {}
+                                    Content::BlossomChest(_) => {}
+                                    Content::ClientGadget(_) => {}
+                                    Content::BossChest(_) => {}
+                                }
+                                continue;
+                            }
+                        }
+                    }
                     Err(_) => {}
                 }
             }

@@ -19,3 +19,9 @@ grasscutter -> /give 39534 lv20 10002 989001,3 998001,6
 
 nod-krai-gi -> item add 39534 lv 20 m 10002 p 989001,3;998001,6
 
+item drop <id>
+
+## gacha
+gacha clear
+gacha add 3523
+gacha add 3593

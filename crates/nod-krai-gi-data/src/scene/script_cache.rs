@@ -18,6 +18,7 @@ use std::{
 
 pub static SCENE_CONFIG_COLLECTION: OnceLock<Arc<HashMap<u32, SceneConfigTemplate>>> =
     OnceLock::new();
+
 pub static SCENE_BLOCK_COLLECTION: OnceLock<Arc<HashMap<(u32, u32), SceneBlockTemplate>>> =
     OnceLock::new();
 

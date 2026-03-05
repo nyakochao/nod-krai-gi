@@ -33,6 +33,8 @@ pub struct Gadget {
     pub rot: Position,
     pub level: Option<u32>,
     pub vision_level: Option<VisionLevelType>,
+    pub drop_tag: Option<String>,
+    pub chest_drop_id: Option<u32>,
     pub state: Option<GadgetState>,
     pub persistent: Option<bool>,
     pub area_id: Option<u32>,

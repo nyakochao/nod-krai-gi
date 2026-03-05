@@ -60,6 +60,9 @@ impl WeaponExcelConfigKeyed<u32> for WeaponExcelConfig {
         let data = list
             .iter()
             .map(|item| (item.key().clone(), item.clone()))
+            .filter(|(_, value)| {
+                value.story_id != 0
+            })
             .collect();
         data
     }

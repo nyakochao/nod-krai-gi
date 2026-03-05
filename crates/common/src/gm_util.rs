@@ -87,6 +87,7 @@ pub enum Command {
     Tp(TpAction),
     Quest(QuestAction),
     Item(ItemAction),
+    Gacha(GachaAction),
     Prop(String, String),
     Dun(Option<u32>),
     Pos,
@@ -145,6 +146,13 @@ pub enum ItemAction {
         id: u32,
         pos: Option<(f32, f32, f32)>,
     },
+}
+
+#[allow(unused)]
+#[derive(Debug)]
+pub enum GachaAction {
+    Add { id: u32 },
+    Clear {},
 }
 
 pub fn parse_command(input: &str) -> Result<Command, String> {
@@ -258,6 +266,14 @@ pub fn parse_command(input: &str) -> Result<Command, String> {
                 pos: None,
             }))
         }),
+
+        ("gacha", "add") => parse_struct(parts, "gacha add <id>", |mut map| {
+            Ok(Command::Gacha(GachaAction::Add {
+                id: map.take("id")?,
+            }))
+        }),
+
+        ("gacha", "clear") => Ok(Command::Gacha(GachaAction::Clear {})),
 
         _ => Err(format!("unknown command:{} {}", first, second)),
     }

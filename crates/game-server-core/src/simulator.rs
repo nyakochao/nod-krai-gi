@@ -1,7 +1,7 @@
 use crate::command::LOGIC_COMMAND_QUEUE;
 use crate::{command::LogicCommand, player_world::PlayerWorld};
-use common::player_cache::{cache_set_online_status, PlayerStatusType};
 use common::logging::TRACE_LOG_PACKET;
+use common::player_cache::{cache_set_is_notify, cache_set_online_status, PlayerStatusType};
 use common::time_util;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
 use nod_krai_gi_message::get_player_version;
@@ -182,10 +182,13 @@ fn simulation_loop(save_data_tx: tokio::sync::mpsc::Sender<(u32, Vec<u8>)>) {
                         player_world_map.remove(&world_owner_uid);
                         player_save_time_map.remove(&uid);
                         cache_set_online_status(uid, PlayerStatusType::PlayerStatusOffline);
+                        cache_set_is_notify(uid, false);
                         tracing::info!("Player {} offline", uid);
                     }
                 }
             }
         }
+
+        thread::sleep(std::time::Duration::from_micros(20));
     }
 }

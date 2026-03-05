@@ -11,9 +11,6 @@ tokio.workspace = true
 bevy_app.workspace = true
 bevy_ecs.workspace = true
 
-# Serialization
-serde_json.workspace = true
-
 # Error processing
 
 # Logging
@@ -27,6 +24,7 @@ common.workspace = true
 nod-krai-gi-entity.workspace = true
 nod-krai-gi-scene.workspace = true
 nod-krai-gi-avatar.workspace = true
+nod-krai-gi-banner.workspace = true
 nod-krai-gi-environment.workspace = true
 nod-krai-gi-pathfinding.workspace = true
 nod-krai-gi-combat.workspace = true

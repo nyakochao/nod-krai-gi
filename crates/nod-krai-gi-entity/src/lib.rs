@@ -28,8 +28,8 @@ use crate::common::Visible;
 use crate::fight::EntityFightPropChangeReasonNotifyEvent;
 use crate::{avatar::CurrentPlayerAvatarMarker, client_gadget::EntitySystemSet};
 use nod_krai_gi_proto::normal::{
-    GadgetInteractReq, GadgetInteractRsp, LifeStateChangeNotify, ProtEntityType,
-    SceneEntityDisappearNotify, VisionType,
+    GadgetInteractReq, GadgetInteractRsp,
+    LifeStateChangeNotify, ProtEntityType, SceneEntityDisappearNotify, VisionType,
 };
 
 pub struct EntityPlugin;
@@ -43,16 +43,16 @@ impl Plugin for EntityPlugin {
             .add_message::<AvatarEquipChangeEvent>()
             .add_message::<AvatarAppearanceChangeEvent>()
             .add_message::<EntityFightPropChangeReasonNotifyEvent>()
-            .add_systems(Update, update_entity_index)
-            .add_systems(Update, update_separate_property_entity)
-            .add_systems(Update, handle_entity)
-            .add_systems(Update, gadget::handle_gadget_interact)
-            .add_systems(Update, avatar::update_avatar_appearance)
+            .add_systems(PreUpdate, handle_entity)
             .add_systems(
-                Update,
+                PreUpdate,
                 client_gadget::handle_evt_update_gadget
                     .in_set(EntitySystemSet::HandleEvtGadgetUpdate),
             )
+            .add_systems(Update, update_entity_index)
+            .add_systems(Update, update_separate_property_entity)
+            .add_systems(Update, gadget::handle_gadget_interact)
+            .add_systems(Update, avatar::update_avatar_appearance)
             .add_systems(
                 PostUpdate,
                 (

@@ -37,6 +37,7 @@ members = [
     "crates/nod-krai-gi-social",
     "crates/nod-krai-gi-script",
     "crates/nod-krai-gi-event",
+    "crates/nod-krai-gi-banner",
 ]
 resolver = "2"
 
@@ -118,6 +119,7 @@ nod-krai-gi-proto = { path = "crates/nod-krai-gi-proto" }
 nod-krai-gi-entity = { path = "crates/nod-krai-gi-entity" }
 nod-krai-gi-event = { path = "crates/nod-krai-gi-event" }
 nod-krai-gi-avatar = { path = "crates/nod-krai-gi-avatar" }
+nod-krai-gi-banner = { path = "crates/nod-krai-gi-banner" }
 nod-krai-gi-scene = { path = "crates/nod-krai-gi-scene" }
 nod-krai-gi-environment = { path = "crates/nod-krai-gi-environment" }
 nod-krai-gi-pathfinding = { path = "crates/nod-krai-gi-pathfinding" }

@@ -1,7 +1,7 @@
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use common::gm_util::Command;
 use common::gm_util::{parse_command, TpAction};
+use common::gm_util::{Command, GachaAction};
 use common::player_cache::cache_get_is_tp;
 use common::time_util::unix_timestamp;
 use nod_krai_gi_entity::common::{EntityCounter, Visible};
@@ -12,7 +12,7 @@ use nod_krai_gi_event::scene::*;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::normal::{ChatInfo, PrivateChatNotify};
-use nod_krai_gi_proto::server_only::VectorBin;
+use nod_krai_gi_proto::server_only::{GachaBin, VectorBin};
 use rand::RngCore;
 use tracing::{debug, instrument};
 
@@ -102,9 +102,11 @@ pub fn debug_command_handler(
                     VectorBin::default(),
                     gadget_id,
                     90,
-                    0,
                     true,
                     None,
+                    None,
+                    0,
+                    0,
                 ) else {
                     continue;
                 };
@@ -129,14 +131,14 @@ pub fn debug_command_handler(
 #[instrument(skip_all)]
 pub fn gm_command_handler(
     mut events: MessageReader<ConsoleChatReqEvent>,
-    players: Res<Players>,
+    mut players: ResMut<Players>,
     mut gm_notify_events: MessageWriter<ConsoleChatNotifyEvent>,
     mut tp_events: MessageWriter<ScenePlayerJumpEvent>,
     mut quest_events: MessageWriter<CommandQuestEvent>,
     mut item_events: MessageWriter<CommandItemEvent>,
 ) {
     for ConsoleChatReqEvent(player_uid, console_content) in events.read() {
-        let Some(player_info) = players.get(*player_uid) else {
+        let Some(player_info) = players.get_mut(*player_uid) else {
             continue;
         };
         if cache_get_is_tp(*player_uid).unwrap_or(true) {
@@ -185,6 +187,24 @@ pub fn gm_command_handler(
                     Command::Item(action) => {
                         item_events.write(CommandItemEvent(*player_uid, action));
                     }
+                    Command::Gacha(action) => match action {
+                        GachaAction::Add { id } => {
+                            let Some(ref mut player_gacha_bin) = player_info.gacha_bin else {
+                                debug!("gacha_bin is None");
+                                continue;
+                            };
+
+                            player_gacha_bin.gacha_map.insert(id, GachaBin::default());
+                        }
+                        GachaAction::Clear { .. } => {
+                            let Some(ref mut player_gacha_bin) = player_info.gacha_bin else {
+                                debug!("gacha_bin is None");
+                                continue;
+                            };
+
+                            player_gacha_bin.gacha_map.clear();
+                        }
+                    },
                     Command::Prop(_, _) => {}
                     Command::Dun(_) => {}
                     Command::Pos => {}

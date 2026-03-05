@@ -18457,108 +18457,31 @@ pub struct PlayerShopCompBin {
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GachaItemTypeDataBin {
-    #[prost(uint32, tag = "1")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub last_gacha_times: u32,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GachaItemParentTypeDataBin {
-    #[prost(uint32, tag = "1")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub last_gacha_times: u32,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GachaGuaranteeDataBin {
-    #[prost(uint32, tag = "1")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_rule_id: u32,
-    #[prost(uint32, tag = "2")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub last_gacha_guarantee_times: u32,
-    #[prost(bool, tag = "3")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub is_cur_schedule_triggered: bool,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
-#[derive(Clone, Copy, PartialEq, Eq, Hash, ::prost::Message)]
-pub struct GachaUpDataBin {
-    #[prost(uint32, tag = "1")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_no_up_times: u32,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GachaRecordBin {
-    #[prost(uint32, tag = "1")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_type: u32,
-    #[prost(uint32, tag = "2")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub cur_schedule_id: u32,
-    #[prost(uint32, tag = "3")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub total_gacha_times: u32,
-    #[prost(map = "uint32, message", tag = "4")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_guarantee_map: ::std::collections::HashMap<u32, GachaGuaranteeDataBin>,
-    #[prost(uint32, tag = "5")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub cur_schedule_total_gacha_times: u32,
-    #[prost(map = "uint32, message", tag = "6")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_item_type_data_map: ::std::collections::HashMap<u32, GachaItemTypeDataBin>,
-    #[prost(map = "uint32, message", tag = "7")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_item_parent_type_data_map: ::std::collections::HashMap<
-        u32,
-        GachaItemParentTypeDataBin,
-    >,
-    #[prost(uint32, tag = "8")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub total_ten_gacha_times: u32,
-    #[prost(map = "uint32, message", tag = "9")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_up_data_map: ::std::collections::HashMap<u32, GachaUpDataBin>,
-    #[prost(uint32, tag = "10")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub wish_item_id: u32,
-    #[prost(uint32, tag = "11")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub wish_progress: u32,
-    #[prost(bool, tag = "12")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub is_new_wish: bool,
-    #[prost(uint32, tag = "13")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub cur_schedule_daily_last_gacha_time: u32,
-    #[prost(uint32, tag = "14")]
-    #[serde(skip_serializing_if = "crate::is_default")]
-    pub cur_schedule_daily_gacha_times: u32,
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[serde(default)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct PlayerGachaCompBin {
-    #[prost(map = "uint32, message", tag = "1")]
+    #[prost(map = "uint32, message", tag = "101")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_record_map: ::std::collections::HashMap<u32, GachaRecordBin>,
-    #[prost(uint32, tag = "2")]
+    pub gacha_map: ::std::collections::HashMap<u32, GachaBin>,
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+#[derive(Clone, PartialEq, Eq, Hash, ::prost::Message)]
+pub struct GachaBin {
+    #[prost(uint32, tag = "101")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub gacha_random: u32,
-    #[prost(uint32, tag = "3")]
+    pub wish_item_id: u32,
+    #[prost(uint32, tag = "102")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub daily_gacha_times: u32,
-    #[prost(uint32, tag = "4")]
+    pub fail_4_count: u32,
+    #[prost(uint32, tag = "103")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub last_gacha_time: u32,
+    pub fail_5_count: u32,
+    #[prost(bool, repeated, tag = "104")]
+    #[serde(skip_serializing_if = "crate::is_default")]
+    pub item4_is_up_list: ::prost::alloc::vec::Vec<bool>,
+    #[prost(bool, repeated, tag = "105")]
+    #[serde(skip_serializing_if = "crate::is_default")]
+    pub item5_is_up_list: ::prost::alloc::vec::Vec<bool>,
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(default)]

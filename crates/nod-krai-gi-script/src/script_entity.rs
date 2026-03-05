@@ -115,9 +115,11 @@ pub fn spawn_group_entity(
                     },
                     gadget_id,
                     gadget.level.unwrap_or(90),
-                    gadget.state.unwrap_or(GadgetState::Default) as u32,
                     is_interactive,
-                    None
+                    None,
+                    gadget.drop_tag.clone(),
+                    gadget.chest_drop_id.unwrap_or(0),
+                    gadget.state.unwrap_or(GadgetState::Default) as u32,
                 ) else {
                     continue;
                 };

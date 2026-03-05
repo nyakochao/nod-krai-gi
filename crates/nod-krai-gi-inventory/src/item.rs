@@ -55,7 +55,7 @@ pub fn item_command_handler(
                 ));
             }
             ItemAction::Drop { id, pos } => {
-                item_drop_events.write(ItemDropEvent(*player_uid, *pos, vec![*id]));
+                item_drop_events.write(ItemDropEvent(*player_uid, *pos, vec![(*id, 1)]));
             }
         }
     }
@@ -95,18 +95,24 @@ pub fn item_add_handler(
             continue;
         };
 
-        for (id, num, level, refinement, main_prop_id, append_prop_id_list) in item_list.iter() {
+        for (item_id, num, level, refinement, main_prop_id, append_prop_id_list) in item_list.iter()
+        {
             let mut item_type = ItemType::NONE;
-            if weapon_excel_config_collection_clone.contains_key(&id) {
+            if weapon_excel_config_collection_clone.contains_key(item_id) {
                 item_type = ItemType::WEAPON;
-            } else if reliquary_excel_config_collection_clone.contains_key(&id) {
+            } else if reliquary_excel_config_collection_clone.contains_key(item_id) {
                 item_type = ItemType::RELIQUARY;
-            } else if material_excel_config_collection_clone.contains_key(&id) {
-                item_type = ItemType::MATERIAL;
+            } else if material_excel_config_collection_clone.contains_key(item_id) {
+                match material_excel_config_collection_clone.get(&item_id) {
+                    None => {}
+                    Some(material_config) => {
+                        item_type = material_config.item_type;
+                    }
+                }
             } else {
                 gm_notify_events.write(ConsoleChatNotifyEvent(
                     *player_uid,
-                    format!("unknown id:{}", id),
+                    format!("unknown id:{}", item_id),
                 ));
             }
 
@@ -114,20 +120,21 @@ pub fn item_add_handler(
                 ItemType::NONE => {}
                 ItemType::VIRTUAL => {}
                 ItemType::MATERIAL => {
-                    let Some(material_config) = material_excel_config_collection_clone.get(&id)
+                    let Some(material_config) =
+                        material_excel_config_collection_clone.get(&item_id)
                     else {
                         continue;
                     };
                     if material_config.use_on_gain {
                         continue;
                     }
-                    let guid = player_item_bin.has_material(*id);
+                    let guid = player_item_bin.has_material(*item_id);
                     if guid.is_none() {
                         player_item_bin.add_item(
                             new_guid,
                             ItemBin {
                                 item_type: item_type as u32,
-                                item_id: *id,
+                                item_id: *item_id,
                                 guid: new_guid,
                                 owner_guid: 0,
                                 detail: Some(item_bin::Detail::Material(MaterialBin {
@@ -202,7 +209,7 @@ pub fn item_add_handler(
                         new_guid,
                         ItemBin {
                             item_type: item_type as u32,
-                            item_id: *id,
+                            item_id: *item_id,
                             guid: new_guid,
                             owner_guid: 0,
                             detail: Some(item_bin::Detail::Equip(EquipBin {
@@ -219,7 +226,8 @@ pub fn item_add_handler(
                     change_map.insert(new_guid, 1);
                 }
                 ItemType::WEAPON => {
-                    let Some(weapon_config) = weapon_excel_config_collection_clone.get(&id) else {
+                    let Some(weapon_config) = weapon_excel_config_collection_clone.get(&item_id)
+                    else {
                         continue;
                     };
                     let level = level.unwrap_or(1).clamp(1, 100);
@@ -231,7 +239,7 @@ pub fn item_add_handler(
                         new_guid,
                         ItemBin {
                             item_type: item_type as u32,
-                            item_id: *id,
+                            item_id: *item_id,
                             guid: new_guid,
                             owner_guid: 0,
                             detail: Some(item_bin::Detail::Equip(EquipBin {
@@ -274,12 +282,6 @@ pub fn item_drop_handler(
     let material_excel_config_collection_clone =
         std::sync::Arc::clone(material_excel_config_collection::get());
 
-    let reliquary_main_prop_excel_config_collection_clone =
-        std::sync::Arc::clone(reliquary_main_prop_excel_config_collection::get());
-
-    let reliquary_affix_excel_config_collection_clone =
-        std::sync::Arc::clone(reliquary_affix_excel_config_collection::get());
-
     for ItemDropEvent(player_uid, pos, item_list) in events.read() {
         let Some(player_info) = players.get_mut(*player_uid) else {
             continue;
@@ -287,7 +289,7 @@ pub fn item_drop_handler(
 
         let new_guid = player_info.next_guid();
 
-        for item_id in item_list.iter() {
+        for (item_id, count) in item_list.iter() {
             let mut item_type = ItemType::NONE;
             let mut gadget_id = 0;
             let mut item = None;
@@ -296,7 +298,12 @@ pub fn item_drop_handler(
             } else if reliquary_excel_config_collection_clone.contains_key(item_id) {
                 item_type = ItemType::RELIQUARY;
             } else if material_excel_config_collection_clone.contains_key(item_id) {
-                item_type = ItemType::MATERIAL;
+                match material_excel_config_collection_clone.get(&item_id) {
+                    None => {}
+                    Some(material_config) => {
+                        item_type = material_config.item_type;
+                    }
+                }
             } else {
                 gm_notify_events.write(ConsoleChatNotifyEvent(
                     *player_uid,
@@ -306,8 +313,7 @@ pub fn item_drop_handler(
 
             match item_type {
                 ItemType::NONE => {}
-                ItemType::VIRTUAL => {}
-                ItemType::MATERIAL => {
+                ItemType::VIRTUAL | ItemType::MATERIAL => {
                     let Some(material_config) = material_excel_config_collection_clone.get(item_id)
                     else {
                         continue;
@@ -321,7 +327,7 @@ pub fn item_drop_handler(
                         guid: new_guid,
                         detail: Some(item::Detail::Material(Material {
                             delete_info: None,
-                            count: 1,
+                            count: *count,
                         })),
                     });
                 }
@@ -332,32 +338,6 @@ pub fn item_drop_handler(
                         continue;
                     };
 
-                    let final_key = match reliquary_main_prop_excel_config_collection_clone
-                        .keys()
-                        .choose(&mut rng)
-                    {
-                        Some(k) => k,
-                        None => continue,
-                    };
-
-                    let Some(reliquary_main_prop_config) =
-                        reliquary_main_prop_excel_config_collection_clone.get(&final_key)
-                    else {
-                        gm_notify_events.write(ConsoleChatNotifyEvent(
-                            *player_uid,
-                            format!("main_prop_id not found:{}", final_key),
-                        ));
-                        continue;
-                    };
-
-                    let main_prop = reliquary_main_prop_config.prop_type;
-
-                    let append_prop_id_list = pick_four_affix_ids(
-                        &reliquary_affix_excel_config_collection_clone,
-                        main_prop,
-                        &mut rng,
-                    );
-
                     gadget_id = reliquary_config.gadget_id;
 
                     item = Some(Item {
@@ -366,8 +346,6 @@ pub fn item_drop_handler(
                         detail: Some(item::Detail::Equip(Equip {
                             is_locked: false,
                             detail: Some(equip::Detail::Reliquary(Reliquary {
-                                main_prop_id: *final_key,
-                                append_prop_id_list,
                                 level: 1,
                                 ..Default::default()
                             })),
@@ -379,11 +357,6 @@ pub fn item_drop_handler(
                     else {
                         continue;
                     };
-                    let level = 1;
-                    let mut affix_map = HashMap::new();
-                    weapon_config.skill_affix.iter().for_each(|affix| {
-                        affix_map.insert(*affix, 0);
-                    });
 
                     gadget_id = weapon_config.gadget_id;
 
@@ -393,9 +366,7 @@ pub fn item_drop_handler(
                         detail: Some(item::Detail::Equip(Equip {
                             is_locked: false,
                             detail: Some(equip::Detail::Weapon(Weapon {
-                                level,
-                                promote_level: get_min_promote_level(level),
-                                affix_map,
+                                level: 1,
                                 ..Default::default()
                             })),
                         })),
@@ -427,12 +398,14 @@ pub fn item_drop_handler(
                         VectorBin::default(),
                         gadget_id,
                         1,
-                        0,
                         true,
                         Some(scene_gadget_info::Content::TrifleGadget(TrifleGadget {
                             item: Some(item),
                             ..Default::default()
                         })),
+                        None,
+                        0,
+                        0,
                     ) else {
                         continue;
                     };

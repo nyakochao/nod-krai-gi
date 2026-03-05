@@ -13,7 +13,7 @@ use nod_krai_gi_data::excel::{
 use nod_krai_gi_proto::server_only::*;
 
 pub fn create_default_player_information(uid: u32, nick_name: String) -> PlayerDataBin {
-    const DEFAULT_TEAM: [u32; 1] = [10000106];
+    const DEFAULT_TEAM: [u32; 1] = [10000046];
     const DEFAULT_LEVEL: u32 = 60;
 
     let avatar_excel_config_collection_clone =
@@ -30,6 +30,11 @@ pub fn create_default_player_information(uid: u32, nick_name: String) -> PlayerD
 
     let avatar_trace_effect_excel_config_collection_clone =
         std::sync::Arc::clone(avatar_trace_effect_excel_config_collection::get());
+
+    let mut gacha_map = HashMap::new();
+    gacha_map.insert(16, GachaBin::default());
+    gacha_map.insert(1, GachaBin::default());
+    gacha_map.insert(803, GachaBin::default());
 
     let mut player = PlayerDataBin {
         uid,
@@ -86,6 +91,7 @@ pub fn create_default_player_information(uid: u32, nick_name: String) -> PlayerD
             }),
             ..Default::default()
         }),
+        gacha_bin: Some(PlayerGachaCompBin { gacha_map }),
         ..Default::default()
     };
 
@@ -236,7 +242,10 @@ fn add_avatar_and_weapon(player: &mut PlayerDataBin, avatar: &AvatarExcelConfig)
     let Some(skill_depot_config) =
         avatar_skill_depot_excel_config_collection_clone.get(&avatar_config.skill_depot_id)
     else {
-        tracing::debug!("avatar skill depot config {} doesn't exist", avatar_config.skill_depot_id);
+        tracing::debug!(
+            "avatar skill depot config {} doesn't exist",
+            avatar_config.skill_depot_id
+        );
         return;
     };
 

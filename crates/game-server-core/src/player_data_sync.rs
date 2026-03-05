@@ -56,9 +56,9 @@ pub fn sync_player_data(players: Res<Players>, out: Res<MessageOutput>) {
                     PROP_PLAYER_RESIN:200;
                     PROP_IS_DIVEABLE :1;
                     PROP_CUR_PHLOGISTON :10000;
-                    PROP_PLAYER_HCOIN :991;
-                    PROP_PLAYER_SCOIN :992;
-                    PROP_PLAYER_MCOIN :993;
+                    PROP_PLAYER_HCOIN :100000991;
+                    PROP_PLAYER_SCOIN :100000992;
+                    PROP_PLAYER_MCOIN :100000993;
                 },
                 server_time: time_util::unix_timestamp_ms(),
                 is_first_login_today: false,

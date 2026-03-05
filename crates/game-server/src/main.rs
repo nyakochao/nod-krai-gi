@@ -9,11 +9,12 @@ use game_server_core::LogicSimulator;
 use net::UdpServer;
 use nod_krai_gi_data::ability::load_ability_configs_from_bin;
 use nod_krai_gi_data::config::load_avatar_talent_configs_from_bin;
+use nod_krai_gi_data::custom::CombinedDrop;
 use nod_krai_gi_data::quest::quest_config::load_quest_configs_from_bin;
 use nod_krai_gi_data::scene::scene_point_config::load_scene_point_configs_from_bin;
 use nod_krai_gi_data::scene::script_cache::{init_scene_static_templates, load_lua_vm};
 use nod_krai_gi_data::{
-    config::load_avatar_configs_from_bin, config::load_gadget_configs_from_bin, excel,
+    config::load_avatar_configs_from_bin, config::load_gadget_configs_from_bin, custom, excel,
     GAME_SERVER_CONFIG,
 };
 use nod_krai_gi_encryption::{rsa::RsaKeyPair, xor::MhyXorpad};
@@ -101,6 +102,8 @@ async fn main() -> Result<()> {
     });
 
     excel::load_all("assets/ExcelBinOutput")?;
+    custom::load_all("assets/custom")?;
+    CombinedDrop::load("assets/custom");
 
     loop {
         if MULTI_VERSION_PROTOCOL.get().unwrap().is_empty() {

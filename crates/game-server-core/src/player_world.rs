@@ -4,6 +4,7 @@ use crate::player_data_sync::PlayerDataSyncPlugin;
 use bevy_app::prelude::*;
 use nod_krai_gi_ability::AbilityPlugin;
 use nod_krai_gi_avatar::AvatarPlugin;
+use nod_krai_gi_banner::BannerPlugin;
 use nod_krai_gi_combat::CombatPlugin;
 use nod_krai_gi_command::CommandPlugin;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
@@ -47,6 +48,7 @@ impl PlayerWorld {
             .add_plugins(EntityPlugin)
             .add_plugins(ScenePlugin)
             .add_plugins(AvatarPlugin)
+            .add_plugins(BannerPlugin)
             .add_plugins(InventoryPlugin)
             .add_plugins(EnvironmentPlugin)
             .add_plugins(PathfindingPlugin)

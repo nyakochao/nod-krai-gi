@@ -8,10 +8,13 @@
 
 `nod-krai-gi` 分叉自 [mavuika-rs](https://git.xeondev.com/mavuika-rs/mavuika-rs) 项目。仅实验性实现。
 
+ game version >= 6.1.0
+
 
 ## 功能实现/差异
 - `sdk-server`: 从项目中删除，使用hoyo-sdk(添加dispatch的重定向，因为从补丁中移除了http，只能使用代理),设置 http_addr = "127.0.0.1:21000"
 - `nod-krai-gi-database`: 使用 rocksdb
+- `nod-krai-gi-bannber`: 卡池...
 - `nod-krai-gi-proto`: 修改为动态加载协议文件
 - `nod-krai-gi-ability`: 实现能力系统（错误实现）
 - `nod-krai-gi-muip-server`: 提供指令，用于调试。（未完成，编译时删除此部分）

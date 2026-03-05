@@ -116,14 +116,16 @@ impl AvatarExcelConfigKeyed<u32> for AvatarExcelConfig {
         let data = list
             .iter()
             .map(|item| (item.key().clone(), item.clone()))
-            .filter(|(key, _value)| {
+            .filter(|(key, value)| {
                 if *key < 10000002
                     || *key >= 11000000
                     || (*key <= 10000910 && *key >= 10000900)
                     || *key == 10000075
                 {
                     return false;
-                } else {
+                } else if value.initial_weapon == 10009 {
+                    return false;
+                }else {
                     return true;
                 }
             })

@@ -1,5 +1,6 @@
 pub mod ability;
 pub mod config;
+pub mod custom;
 pub mod dynamic_float;
 pub mod excel;
 pub mod prop_type;
