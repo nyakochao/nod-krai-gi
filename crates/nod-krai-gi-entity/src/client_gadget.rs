@@ -5,11 +5,6 @@ use nod_krai_gi_data::excel::gadget_excel_config_collection;
 use nod_krai_gi_message::event::ClientMessageEvent;
 use nod_krai_gi_proto::normal::{EvtCreateGadgetNotify, EvtDestroyGadgetNotify};
 
-#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum EntitySystemSet {
-    HandleEvtGadgetUpdate,
-}
-
 #[derive(Component)]
 pub struct ClientGadgetID(pub u32);
 

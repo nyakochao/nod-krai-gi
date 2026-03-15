@@ -60,21 +60,25 @@ pub fn server_invoke(
         if ability.is_none() && head.instanced_modifier_id != 0 {
             if let Ok((_, instanced_modifiers, _)) = entity_query.get(entity) {
                 if let Some(modifier) = instanced_modifiers.get(&head.instanced_modifier_id) {
-                    if let Some(idx) = modifier.ability_index {
+                    if let Some(ability_idx) = modifier.ability_index {
                         let entity_to_get = modifier.target_entity.unwrap_or(entity);
                         if let Ok((target_abilities, _, _)) = entity_query.get(entity_to_get) {
-                            if let Some(item) = target_abilities.list.get(idx as usize) {
+                            if let Some(item) = target_abilities.list.get(ability_idx as usize) {
                                 let modifier_name = InternString::from(modifier.name.as_str());
-                                if let Some(&modifier_id) = item.modifiers.get(&modifier_name) {
-                                    if modifier_id == head.instanced_modifier_id {
-                                        ability = Some((idx, entity_to_get, item.clone()));
+                                if let Some(instanced_modifier) =
+                                    instanced_modifiers.get_by_name(ability_idx, &modifier_name)
+                                {
+                                    if instanced_modifier.instanced_modifier_id
+                                        == head.instanced_modifier_id
+                                    {
+                                        ability = Some((ability_idx, entity_to_get, item.clone()));
                                     } else {
                                         if GAME_SERVER_CONFIG.plugin.ability_log {
                                             tracing::warn!(
                                                 "[server_invoke] Modifier ID mismatch: expected {} found {} in ability {}",
                                                 head.instanced_modifier_id,
-                                                modifier_id,
-                                                idx
+                                                instanced_modifier.instanced_modifier_id,
+                                                ability_idx
                                             );
                                         }
                                     }
@@ -83,7 +87,7 @@ pub fn server_invoke(
                                         tracing::warn!(
                                             "[server_invoke] Modifier {} not found in ability {}'s owned modifiers",
                                             modifier.name,
-                                            idx
+                                            ability_idx
                                         );
                                     }
                                 }
@@ -169,8 +173,11 @@ pub fn server_invoke(
                 };
 
                 let mut collect_actions = Vec::new();
-                
-                fn collect_recursive<'a>(actions: &'a Vec<nod_krai_gi_data::ability::AbilityModifierAction>, collect: &mut Vec<&'a nod_krai_gi_data::ability::AbilityModifierAction>) {
+
+                fn collect_recursive<'a>(
+                    actions: &'a Vec<nod_krai_gi_data::ability::AbilityModifierAction>,
+                    collect: &mut Vec<&'a nod_krai_gi_data::ability::AbilityModifierAction>,
+                ) {
                     for action in actions.iter() {
                         collect.push(action);
                         if !action.actions.is_empty() {
@@ -185,7 +192,7 @@ pub fn server_invoke(
                         }
                     }
                 }
-                
+
                 collect_recursive(actions, &mut collect_actions);
 
                 let action_idx = local_id_info.action_idx as usize;
@@ -314,8 +321,11 @@ pub fn server_invoke(
                         };
 
                     let mut collect_actions = Vec::new();
-                    
-                    fn collect_recursive<'a>(actions: &'a Vec<nod_krai_gi_data::ability::AbilityModifierAction>, collect: &mut Vec<&'a nod_krai_gi_data::ability::AbilityModifierAction>) {
+
+                    fn collect_recursive<'a>(
+                        actions: &'a Vec<nod_krai_gi_data::ability::AbilityModifierAction>,
+                        collect: &mut Vec<&'a nod_krai_gi_data::ability::AbilityModifierAction>,
+                    ) {
                         for action in actions.iter() {
                             collect.push(action);
                             if !action.actions.is_empty() {
@@ -330,7 +340,7 @@ pub fn server_invoke(
                             }
                         }
                     }
-                    
+
                     collect_recursive(actions, &mut collect_actions);
 
                     let action_idx = local_id_info.action_idx as usize;

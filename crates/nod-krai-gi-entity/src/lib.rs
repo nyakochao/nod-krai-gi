@@ -24,13 +24,19 @@ pub mod transform;
 pub mod util;
 pub mod weapon;
 
+use crate::avatar::CurrentPlayerAvatarMarker;
 use crate::common::Visible;
 use crate::fight::EntityFightPropChangeReasonNotifyEvent;
-use crate::{avatar::CurrentPlayerAvatarMarker, client_gadget::EntitySystemSet};
 use nod_krai_gi_proto::normal::{
     GadgetInteractReq, GadgetInteractRsp, LifeStateChangeNotify, ProtEntityType,
     SceneEntityDisappearNotify, SceneEntityDrownReq, VisionType,
 };
+
+#[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
+pub enum EntitySystemSet {
+    HandleEntitySpawn,
+    HandleEntityIndexUpdate,
+}
 
 pub struct EntityPlugin;
 
@@ -43,13 +49,15 @@ impl Plugin for EntityPlugin {
             .add_message::<AvatarEquipChangeEvent>()
             .add_message::<AvatarAppearanceChangeEvent>()
             .add_message::<EntityFightPropChangeReasonNotifyEvent>()
+            .add_systems(
+                PreUpdate,
+                update_entity_index.in_set(EntitySystemSet::HandleEntityIndexUpdate),
+            )
             .add_systems(PreUpdate, handle_entity)
             .add_systems(
                 PreUpdate,
-                client_gadget::handle_evt_update_gadget
-                    .in_set(EntitySystemSet::HandleEvtGadgetUpdate),
+                client_gadget::handle_evt_update_gadget.in_set(EntitySystemSet::HandleEntitySpawn),
             )
-            .add_systems(Update, update_entity_index)
             .add_systems(Update, update_separate_property_entity)
             .add_systems(Update, gadget::handle_gadget_interact)
             .add_systems(Update, avatar::update_avatar_appearance)
@@ -69,12 +77,15 @@ impl Plugin for EntityPlugin {
                     remove_marked_entities,
                     avatar::notify_avatar_appearance_change,
                     avatar::notify_appear_avatar_entities
+                        .in_set(EntitySystemSet::HandleEntitySpawn)
                         .run_if(avatar::run_if_avatar_entities_appeared),
                     avatar::notify_appear_replace_avatar_entities
                         .run_if(avatar::run_if_avatar_entities_appeared),
                     monster::notify_appear_monster_entities
+                        .in_set(EntitySystemSet::HandleEntitySpawn)
                         .run_if(monster::run_if_monster_entities_appeared),
                     gadget::notify_appear_gadget_entities
+                        .in_set(EntitySystemSet::HandleEntitySpawn)
                         .run_if(gadget::run_if_gadget_entities_appeared),
                 )
                     .chain(),

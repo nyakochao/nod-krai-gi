@@ -1,22 +1,22 @@
 use crate::util::eval_option;
 use bevy_ecs::prelude::*;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
+
 use nod_krai_gi_entity::common::{FightProperties, InstancedAbilities};
-use nod_krai_gi_event::ability::*;
+use nod_krai_gi_event::ability::ExecuteActionEvent;
 
 pub fn ability_action_set_override_map_value_event(
-    mut events: MessageReader<AbilityActionSetOverrideMapValueEvent>,
+    mut events: MessageReader<ExecuteActionEvent>,
     fight_props_query: Query<&FightProperties>,
     mut abilities_query: Query<&mut InstancedAbilities>,
 ) {
-    for AbilityActionSetOverrideMapValueEvent(
-        ability_index,
-        ability_entity,
-        action,
-        _ability_data,
-        _target_entity,
-    ) in events.read()
+    for ExecuteActionEvent(ability_index, ability_entity, action, _ability_data, _target_entity) in
+        events.read()
     {
+        if action.type_name != "SetOverrideMapValue" {
+            continue;
+        }
+
         let Ok(mut abilities) = abilities_query.get_mut(*ability_entity) else {
             if GAME_SERVER_CONFIG.plugin.ability_log {
                 tracing::debug!(
@@ -47,7 +47,9 @@ pub fn ability_action_set_override_map_value_event(
 
         if override_map_key.is_empty() {
             if GAME_SERVER_CONFIG.plugin.ability_log {
-                tracing::debug!("[ability_action_set_override_map_value_event] Missing override_map_key");
+                tracing::debug!(
+                    "[ability_action_set_override_map_value_event] Missing override_map_key"
+                );
             }
             continue;
         };

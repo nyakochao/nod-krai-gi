@@ -3,33 +3,33 @@ use bevy_ecs::prelude::*;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
 use nod_krai_gi_entity::avatar::{CurrentPlayerAvatarMarker, CurrentTeam};
 use nod_krai_gi_entity::common::{
-    EntityById, GlobalAbilityValues, InstancedAbilities, OwnerProtocolEntityID, ProtocolEntityID,
+    EntityById, GlobalAbilityValues, InstancedAbilities, OwnerProtocolEntityID,
 };
 use nod_krai_gi_entity::team::TeamEntityMarker;
-use nod_krai_gi_event::ability::*;
+use nod_krai_gi_event::ability::ExecuteActionEvent;
 
 pub fn ability_action_set_global_value_to_override_map_event(
-    mut events: MessageReader<AbilityActionSetGlobalValueToOverrideMapEvent>,
+    mut events: MessageReader<ExecuteActionEvent>,
     mut abilities_query: Query<&mut InstancedAbilities>,
     global_values_query: Query<&GlobalAbilityValues>,
-    entity_by_id: Res<EntityById>,
+    index: Res<EntityById>,
     entity_query: Query<(
         Entity,
-        &ProtocolEntityID,
         Option<&OwnerProtocolEntityID>,
         Option<&CurrentPlayerAvatarMarker>,
         Option<&CurrentTeam>,
         Option<&TeamEntityMarker>,
     )>,
 ) {
-    for AbilityActionSetGlobalValueToOverrideMapEvent(
-        ability_index,
-        ability_entity,
-        action,
-        _ability_data,
-        target_entity,
-    ) in events.read()
+    for ExecuteActionEvent(ability_index, ability_entity, action, _ability_data, target_entity) in
+        events.read()
     {
+        if action.type_name != "SetGlobalValueToOverrideMap" {
+            continue;
+        }
+
+        let target_entity = target_entity.unwrap_or(*ability_entity);
+
         let global_value_key = action.global_value_key;
         let override_map_key = action.override_map_key;
         let ability_formula = action.ability_formula;
@@ -49,13 +49,13 @@ pub fn ability_action_set_global_value_to_override_map_event(
         let source_entity = if is_from_owner {
             resolve_target_entity_by_str(
                 "Owner",
-                *target_entity,
-                Some(*target_entity),
-                &entity_by_id,
+                target_entity,
+                Some(target_entity),
+                &index,
                 &entity_query,
             )
         } else {
-            Some(*target_entity)
+            Some(target_entity)
         };
 
         let Some(source_entity) = source_entity else {

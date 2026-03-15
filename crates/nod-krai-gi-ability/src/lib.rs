@@ -3,34 +3,22 @@ use crate::server_invoke::server_invoke;
 
 use crate::actions::ability_action_add_global_value::ability_action_add_global_value_event;
 use crate::actions::ability_action_add_hp_debts::ability_action_add_hp_debts_event;
-use crate::actions::ability_action_apply_modifier::ability_action_apply_modifier_event;
-use crate::actions::ability_action_attach_modifier::ability_action_attach_modifier_event;
-use crate::actions::ability_action_avatar_skill_start::ability_action_avatar_skill_start_event;
 use crate::actions::ability_action_clear_global_value::ability_action_clear_global_value_event;
 use crate::actions::ability_action_copy_global_value::ability_action_copy_global_value_event;
 use crate::actions::ability_action_get_hp_paid_debts::ability_action_get_hp_paid_debts_event;
 use crate::actions::ability_action_heal_hp::ability_action_heal_hp_event;
 use crate::actions::ability_action_kill_self::ability_action_kill_self_event;
 use crate::actions::ability_action_lose_hp::ability_action_lose_hp_event;
-use crate::actions::ability_action_modify_avatar_skill_cd::ability_action_modify_avatar_skill_cd_event;
 use crate::actions::ability_action_reduce_hp_debts::ability_action_reduce_hp_debts_event;
-use crate::actions::ability_action_remove_modifier::ability_action_remove_modifier_event;
-use crate::actions::ability_action_remove_unique_modifier::ability_action_remove_unique_modifier_event;
 use crate::actions::ability_action_set_global_value::ability_action_set_global_value_event;
 use crate::actions::ability_action_set_global_value_to_override_map::ability_action_set_global_value_to_override_map_event;
 use crate::actions::ability_action_set_override_map_value::ability_action_set_override_map_value_event;
 use crate::actions::ability_action_set_random_override_map_value::ability_action_set_random_override_map_value_event;
-use crate::actions::ability_action_trigger_ability::ability_action_trigger_ability_event;
-use crate::actions::{
-    execute_action_system_ability, execute_action_system_debts, execute_action_system_global_value,
-    execute_action_system_hp, execute_action_system_misc, execute_action_system_modifier,
-    execute_action_system_override_map,
-};
 use crate::mixins::execute_mixin_system;
 
 use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
-use nod_krai_gi_entity::client_gadget::EntitySystemSet;
+use nod_krai_gi_entity::EntitySystemSet;
 use nod_krai_gi_event::ability::*;
 use nod_krai_gi_message::event::ClientMessageEvent;
 use nod_krai_gi_message::output::MessageOutput;
@@ -79,7 +67,9 @@ impl Plugin for AbilityPlugin {
                 PreUpdate,
                 (
                     on_ability_notify,
-                    handle_add_new_ability.after(EntitySystemSet::HandleEvtGadgetUpdate),
+                    handle_add_new_ability
+                        .after(EntitySystemSet::HandleEntitySpawn)
+                        .after(EntitySystemSet::HandleEntityIndexUpdate),
                     handle_modifier_change,
                     handle_override_param,
                     handle_reinit_override_map,
@@ -87,36 +77,8 @@ impl Plugin for AbilityPlugin {
                     handle_clear_global_float_value,
                     server_invoke,
                     execute_mixin_system,
-                    execute_action_system_ability,
-                    execute_action_system_modifier,
-                    execute_action_system_override_map,
-                    execute_action_system_global_value,
-                    execute_action_system_hp,
-                    execute_action_system_debts,
-                    execute_action_system_misc,
                 )
                     .chain(),
-            )
-            // Update systems
-            .add_systems(
-                Update,
-                ability_action_trigger_ability_event.in_set(AbilitySystemSet::Ability),
-            )
-            .add_systems(
-                Update,
-                ability_action_apply_modifier_event.in_set(AbilitySystemSet::Modifier),
-            )
-            .add_systems(
-                Update,
-                ability_action_attach_modifier_event.in_set(AbilitySystemSet::Modifier),
-            )
-            .add_systems(
-                Update,
-                ability_action_remove_modifier_event.in_set(AbilitySystemSet::Modifier),
-            )
-            .add_systems(
-                Update,
-                ability_action_remove_unique_modifier_event.in_set(AbilitySystemSet::Modifier),
             )
             .add_systems(
                 Update,
@@ -167,14 +129,6 @@ impl Plugin for AbilityPlugin {
             .add_systems(
                 Update,
                 ability_action_reduce_hp_debts_event.in_set(AbilitySystemSet::Other),
-            )
-            .add_systems(
-                Update,
-                ability_action_modify_avatar_skill_cd_event.in_set(AbilitySystemSet::Other),
-            )
-            .add_systems(
-                Update,
-                ability_action_avatar_skill_start_event.in_set(AbilitySystemSet::Other),
             )
             .add_systems(
                 Update,

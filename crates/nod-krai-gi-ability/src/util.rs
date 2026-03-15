@@ -7,7 +7,7 @@ use nod_krai_gi_data::prop_type::FightPropType;
 use nod_krai_gi_data::{DynamicFloat, GAME_SERVER_CONFIG};
 use nod_krai_gi_entity::avatar::{CurrentPlayerAvatarMarker, CurrentTeam};
 use nod_krai_gi_entity::common::{
-    EntityById, FightProperties, InstancedAbility, OwnerProtocolEntityID, ProtocolEntityID,
+    EntityById, FightProperties, InstancedAbility, OwnerProtocolEntityID,
 };
 use nod_krai_gi_entity::team::TeamEntityMarker;
 use nod_krai_gi_proto::normal::ability_string::Type;
@@ -344,10 +344,9 @@ pub fn resolve_target_entity(
     target: AbilityTargettingEnum,
     ability_entity: Entity,
     target_entity: Option<Entity>,
-    entity_by_id: &EntityById,
+    index: &EntityById,
     entity_query: &Query<(
         Entity,
-        &ProtocolEntityID,
         Option<&OwnerProtocolEntityID>,
         Option<&CurrentPlayerAvatarMarker>,
         Option<&CurrentTeam>,
@@ -359,10 +358,10 @@ pub fn resolve_target_entity(
         AbilityTargettingEnum::Caster => Some(ability_entity),
         AbilityTargettingEnum::Target => target_entity,
         AbilityTargettingEnum::CurLocalAvatar => {
-            let Some((entity, _, _, _, _, _)) =
+            let Some((entity, _, _, _, _)) =
                 entity_query
                     .iter()
-                    .find(|(_, _, _, current_player_avatar_marker, _, _)| {
+                    .find(|(_, _, current_player_avatar_marker, _, _)| {
                         current_player_avatar_marker.is_some()
                     })
             else {
@@ -371,26 +370,26 @@ pub fn resolve_target_entity(
             Some(entity)
         }
         AbilityTargettingEnum::Team => {
-            let Some((entity, _, _, _, _, _)) = entity_query
+            let Some((entity, _, _, _, _)) = entity_query
                 .iter()
-                .find(|(_, _, _, _, _, team_entity_marker)| team_entity_marker.is_some())
+                .find(|(_, _, _, _, team_entity_marker)| team_entity_marker.is_some())
             else {
                 return None;
             };
             Some(entity)
         }
         AbilityTargettingEnum::Owner | AbilityTargettingEnum::OriginOwner => {
-            find_top_owner(ability_entity, entity_by_id, entity_query)
+            find_top_owner(ability_entity, index, entity_query)
         }
         AbilityTargettingEnum::TargetOwner | AbilityTargettingEnum::TargetOriginOwner => {
             if let Some(target) = target_entity {
-                find_top_owner(target, entity_by_id, entity_query)
+                find_top_owner(target, index, entity_query)
             } else {
                 None
             }
         }
         AbilityTargettingEnum::CasterOwner | AbilityTargettingEnum::CasterOriginOwner => {
-            find_top_owner(ability_entity, entity_by_id, entity_query)
+            find_top_owner(ability_entity, index, entity_query)
         }
         _ => target_entity,
     }
@@ -398,17 +397,16 @@ pub fn resolve_target_entity(
 
 fn find_top_owner(
     entity: Entity,
-    entity_by_id: &EntityById,
+    index: &EntityById,
     entity_query: &Query<(
         Entity,
-        &ProtocolEntityID,
         Option<&OwnerProtocolEntityID>,
         Option<&CurrentPlayerAvatarMarker>,
         Option<&CurrentTeam>,
         Option<&TeamEntityMarker>,
     )>,
 ) -> Option<Entity> {
-    let Ok((_, _, owner_entity_id, _, _, _)) = entity_query.get(entity) else {
+    let Ok((_, owner_entity_id, _, _, _)) = entity_query.get(entity) else {
         return Some(entity);
     };
 
@@ -420,10 +418,10 @@ fn find_top_owner(
         return Some(entity);
     };
 
-    let mut current_owner = *entity_by_id.0.get(&owner_entity_id)?;
+    let mut current_owner = *index.0.get(&owner_entity_id)?;
 
     for _ in 0..10 {
-        let Ok((_, _, owner_entity_id, _, _, _)) = entity_query.get(current_owner) else {
+        let Ok((_, owner_entity_id, _, _, _)) = entity_query.get(current_owner) else {
             return Some(current_owner);
         };
 
@@ -435,7 +433,7 @@ fn find_top_owner(
             return Some(current_owner);
         };
 
-        let Some(&owner_entity) = entity_by_id.0.get(&owner_entity_id) else {
+        let Some(&owner_entity) = index.0.get(&owner_entity_id) else {
             return Some(current_owner);
         };
 
@@ -449,10 +447,9 @@ pub fn resolve_target_entity_by_str(
     target_str: &str,
     ability_entity: Entity,
     target_entity: Option<Entity>,
-    entity_by_id: &EntityById,
+    index: &EntityById,
     entity_query: &Query<(
         Entity,
-        &ProtocolEntityID,
         Option<&OwnerProtocolEntityID>,
         Option<&CurrentPlayerAvatarMarker>,
         Option<&CurrentTeam>,
@@ -465,62 +462,7 @@ pub fn resolve_target_entity_by_str(
         target,
         ability_entity,
         target_entity,
-        entity_by_id,
+        index,
         entity_query,
     )
-}
-
-pub fn resolve_target_entities(
-    target: AbilityTargettingEnum,
-    ability_entity: Entity,
-    target_entity: Option<Entity>,
-    entity_by_id: &EntityById,
-    entity_query: &Query<(
-        Entity,
-        &ProtocolEntityID,
-        Option<&OwnerProtocolEntityID>,
-        Option<&CurrentPlayerAvatarMarker>,
-        Option<&CurrentTeam>,
-        Option<&TeamEntityMarker>,
-    )>,
-) -> Vec<Entity> {
-    tracing::debug!("target:{:?}", target);
-
-    match target {
-        AbilityTargettingEnum::CurTeamAvatars => entity_query
-            .iter()
-            .filter(|(_, _, _, _, current_team, _)| current_team.is_some())
-            .map(|(entity, _, _, _, _, _)| entity)
-            .collect(),
-        AbilityTargettingEnum::AllPlayerAvatars => entity_query
-            .iter()
-            .filter(|(_, _, _, _, current_team, _)| current_team.is_some())
-            .map(|(entity, _, _, _, _, _)| entity)
-            .collect(),
-        AbilityTargettingEnum::AllTeams => entity_query
-            .iter()
-            .filter(|(_, _, _, _, _, team_entity_marker)| team_entity_marker.is_some())
-            .map(|(entity, _, _, _, _, _)| entity)
-            .collect(),
-        AbilityTargettingEnum::RemoteTeams => entity_query
-            .iter()
-            .filter(|(_, _, _, _, _, team_entity_marker)| team_entity_marker.is_some())
-            .map(|(entity, _, _, _, _, _)| entity)
-            .collect(),
-        _ => {
-            let single_target = resolve_target_entity(
-                target,
-                ability_entity,
-                target_entity,
-                entity_by_id,
-                entity_query,
-            );
-
-            let Some(single_target) = single_target else {
-                return Vec::new();
-            };
-
-            vec![single_target]
-        }
-    }
 }

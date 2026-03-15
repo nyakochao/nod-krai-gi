@@ -3,7 +3,7 @@ use nod_krai_gi_data::ability::AbilityModifier;
 use nod_krai_gi_data::prop_type::FightPropType;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
 use nod_krai_gi_entity::common::{
-    AbilityModifierController, EntityById, FightProperties, InstancedAbilities, InstancedAbility,
+    EntityById, FightProperties, InstancedAbilities, InstancedAbility, InstancedModifier,
     InstancedModifiers,
 };
 use nod_krai_gi_proto::normal::{AbilityMetaModifierChange, ModifierAction};
@@ -227,7 +227,7 @@ pub fn handle_modifier_change(
                                 };
 
                                 let is_replacing = this_instanced_modifiers
-                                    .normal
+                                    .modifiers
                                     .contains_key(&instanced_modifier_id);
 
                                 if GAME_SERVER_CONFIG.plugin.ability_log {
@@ -252,9 +252,9 @@ pub fn handle_modifier_change(
                                     }
                                 }
 
-                                let modifier_controller = AbilityModifierController::new(
+                                let modifier_controller = InstancedModifier::new(
                                     instanced_modifier_id,
-                                    modifier_data.modifier_name.to_string(),
+                                    modifier_data.modifier_name,
                                     ability_index.unwrap(),
                                     target_entity_ref,
                                 );
@@ -265,10 +265,6 @@ pub fn handle_modifier_change(
                                 if let Some(ability) = ability_index.and_then(|idx| {
                                     this_instanced_abilities.list.get_mut(idx as usize)
                                 }) {
-                                    ability
-                                        .modifiers
-                                        .insert(modifier_data.modifier_name, instanced_modifier_id);
-
                                     apply_modifier_properties(
                                         modifier_data,
                                         ability,
@@ -314,8 +310,6 @@ pub fn handle_modifier_change(
                                                 ability,
                                                 fight_properties.as_deref_mut(),
                                             );
-
-                                            ability.modifiers.remove(&modifier_data.modifier_name);
                                         }
                                     }
                                 }

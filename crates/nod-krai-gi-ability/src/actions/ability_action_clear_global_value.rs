@@ -1,21 +1,23 @@
 use bevy_ecs::prelude::*;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
-use nod_krai_gi_event::ability::AbilityActionClearGlobalValueEvent;
-use nod_krai_gi_entity::common::{InstancedAbilities, GlobalAbilityValues};
+
+use nod_krai_gi_entity::common::{GlobalAbilityValues, InstancedAbilities};
+use nod_krai_gi_event::ability::ExecuteActionEvent;
 
 pub fn ability_action_clear_global_value_event(
-    mut events: MessageReader<AbilityActionClearGlobalValueEvent>,
+    mut events: MessageReader<ExecuteActionEvent>,
     abilities_query: Query<&InstancedAbilities>,
     mut global_values_query: Query<&mut GlobalAbilityValues>,
 ) {
-    for AbilityActionClearGlobalValueEvent(
-        ability_index,
-        ability_entity,
-        action,
-        _ability_data,
-        target_entity,
-    ) in events.read()
+    for ExecuteActionEvent(ability_index, ability_entity, action, _ability_data, target_entity) in
+        events.read()
     {
+        if action.type_name != "ClearGlobalValue" {
+            continue;
+        }
+
+        let target_entity = target_entity.unwrap_or(*ability_entity);
+
         let ability = match abilities_query.get(*ability_entity) {
             Ok(abilities) => abilities.list.get(*ability_index as usize).cloned(),
             Err(_) => None,
@@ -40,7 +42,7 @@ pub fn ability_action_clear_global_value_event(
             );
         }
 
-        if let Ok(mut global_values) = global_values_query.get_mut(*target_entity) {
+        if let Ok(mut global_values) = global_values_query.get_mut(target_entity) {
             global_values.0.remove(&key.into());
         }
     }

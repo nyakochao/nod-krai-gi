@@ -9,11 +9,11 @@ pub mod scene;
 
 pub use dynamic_float::DynamicFloat;
 
+use common::data::RegionConfig;
 use common::game_server_config::GameServerConfig;
 use common::language::Language;
 use common::TomlConfig;
 use std::sync::{LazyLock, OnceLock};
-use common::data::RegionConfig;
 
 pub static GAME_SERVER_CONFIG: LazyLock<GameServerConfig> = LazyLock::new(|| {
     let mut config = GameServerConfig::load_or_create("game-server.toml");
@@ -179,7 +179,7 @@ mod tests {
         let start = std::time::Instant::now();
         for _ in 0..100 {
             for pos in &test_positions {
-                let _ = cache.query_nearby_groups_rtree( *pos, 1000.0f32 * 1000.0f32);
+                let _ = cache.query_nearby_groups_rtree(*pos, 1000.0f32 * 1000.0f32);
             }
         }
         let rtree_time = start.elapsed();

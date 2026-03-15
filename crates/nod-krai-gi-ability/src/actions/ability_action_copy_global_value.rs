@@ -3,33 +3,31 @@ use bevy_ecs::prelude::*;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
 use nod_krai_gi_entity::avatar::{CurrentPlayerAvatarMarker, CurrentTeam};
 use nod_krai_gi_entity::common::{
-    EntityById, GlobalAbilityValues, InstancedAbilities, OwnerProtocolEntityID, ProtocolEntityID,
+    EntityById, GlobalAbilityValues, InstancedAbilities, OwnerProtocolEntityID,
 };
 use nod_krai_gi_entity::team::TeamEntityMarker;
-use nod_krai_gi_event::ability::AbilityActionCopyGlobalValueEvent;
+use nod_krai_gi_event::ability::ExecuteActionEvent;
 
 pub fn ability_action_copy_global_value_event(
-    mut events: MessageReader<AbilityActionCopyGlobalValueEvent>,
+    mut events: MessageReader<ExecuteActionEvent>,
     abilities_query: Query<&InstancedAbilities>,
     mut global_values_query: Query<&mut GlobalAbilityValues>,
-    entity_by_id: Res<EntityById>,
+    index: Res<EntityById>,
     entity_query: Query<(
         Entity,
-        &ProtocolEntityID,
         Option<&OwnerProtocolEntityID>,
         Option<&CurrentPlayerAvatarMarker>,
         Option<&CurrentTeam>,
         Option<&TeamEntityMarker>,
     )>,
 ) {
-    for AbilityActionCopyGlobalValueEvent(
-        ability_index,
-        ability_entity,
-        action,
-        _ability_data,
-        target_entity,
-    ) in events.read()
+    for ExecuteActionEvent(ability_index, ability_entity, action, _ability_data, target_entity) in
+        events.read()
     {
+        if action.type_name != "CopyGlobalValue" {
+            continue;
+        }
+
         let ability = match abilities_query.get(*ability_entity) {
             Ok(abilities) => abilities.list.get(*ability_index as usize).cloned(),
             Err(_) => None,
@@ -54,16 +52,16 @@ pub fn ability_action_copy_global_value_event(
         let source_entity = resolve_target_entity_by_str(
             src_target,
             *ability_entity,
-            Some(*target_entity),
-            &entity_by_id,
+            *target_entity,
+            &index,
             &entity_query,
         );
 
         let dest_entity = resolve_target_entity_by_str(
             dst_target,
             *ability_entity,
-            Some(*target_entity),
-            &entity_by_id,
+            *target_entity,
+            &index,
             &entity_query,
         );
 

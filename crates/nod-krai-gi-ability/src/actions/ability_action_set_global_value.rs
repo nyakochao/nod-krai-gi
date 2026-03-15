@@ -1,22 +1,25 @@
 use bevy_ecs::prelude::*;
 use nod_krai_gi_data::GAME_SERVER_CONFIG;
-use nod_krai_gi_event::ability::AbilityActionSetGlobalValueEvent;
-use nod_krai_gi_entity::common::{InstancedAbilities, GlobalAbilityValues};
 
-use crate::util::{eval_option};
+use nod_krai_gi_entity::common::{GlobalAbilityValues, InstancedAbilities};
+use nod_krai_gi_event::ability::ExecuteActionEvent;
+
+use crate::util::eval_option;
 
 pub fn ability_action_set_global_value_event(
-    mut events: MessageReader<AbilityActionSetGlobalValueEvent>,
+    mut events: MessageReader<ExecuteActionEvent>,
     abilities_query: Query<&InstancedAbilities>,
     mut global_values_query: Query<&mut GlobalAbilityValues>,
 ) {
-    for AbilityActionSetGlobalValueEvent(
-        ability_index,
-        ability_entity,
-        action,
-        _ability_data,
-        target_entity,
-    ) in events.read() {
+    for ExecuteActionEvent(ability_index, ability_entity, action, _ability_data, target_entity) in
+        events.read()
+    {
+        if action.type_name != "SetGlobalValue" {
+            continue;
+        }
+
+        let target_entity = target_entity.unwrap_or(*ability_entity);
+
         let ability = match abilities_query.get(*ability_entity) {
             Ok(abilities) => abilities.list.get(*ability_index as usize).cloned(),
             Err(_) => None,
@@ -55,7 +58,7 @@ pub fn ability_action_set_global_value_event(
             );
         }
 
-        if let Ok(mut global_values) = global_values_query.get_mut(*target_entity) {
+        if let Ok(mut global_values) = global_values_query.get_mut(target_entity) {
             global_values.0.insert(key.into(), final_value);
         }
     }

@@ -1,17 +1,17 @@
+use crate::common::InstancedAbilities;
 use bevy_ecs::component::Component;
 use common::string_util;
 use common::string_util::InternString;
 use indexmap::IndexMap;
 use nod_krai_gi_data::{config, excel::avatar_excel_config_collection};
 use nod_krai_gi_proto::normal::{AbilityControlBlock, AbilityEmbryo};
-use crate::common::InstancedAbilities;
-
 
 #[derive(Component, Default)]
 pub struct Ability {
     pub target_ability_map: IndexMap<InternString, AbilityData>,
 }
 
+#[derive(Debug)]
 pub struct AbilityData {
     pub ability_name_hash: u32,
     pub ability_override_name_hash: u32,

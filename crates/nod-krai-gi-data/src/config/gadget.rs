@@ -1,9 +1,9 @@
+use common::string_util::InternString;
 use std::{
     collections::HashMap,
     fs::{self, ReadDir},
     sync::OnceLock,
 };
-use common::string_util::InternString;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct GadgetConfig {
@@ -13,6 +13,7 @@ pub struct GadgetConfig {
 }
 
 #[derive(Debug, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct GadgetCombat {
     pub property: Option<serde_json::Value>,
     pub be_hit: Option<serde_json::Value>,
@@ -44,7 +45,8 @@ fn load_gadget_configs(gadget_config_dir: ReadDir) -> std::io::Result<()> {
     let mut map = HashMap::new();
     for entry in gadget_config_dir {
         let entry = entry?;
-        let json =  std::fs::read(entry.path())?;
+        let json = std::fs::read(entry.path())?;
+        let json = common::string_util::strip_json_comments_bytes(&*json);
         match serde_json::from_slice(&*json) {
             Ok(config) => {
                 let configs: HashMap<InternString, GadgetConfig> = config;
@@ -66,6 +68,7 @@ pub fn get_gadget_config(name: &InternString) -> Option<&GadgetConfig> {
     GADGET_CONFIG_MAP.get().unwrap().get(name)
 }
 
-pub fn iter_gadget_config_map() -> std::collections::hash_map::Iter<'static, InternString, GadgetConfig> {
+pub fn iter_gadget_config_map(
+) -> std::collections::hash_map::Iter<'static, InternString, GadgetConfig> {
     GADGET_CONFIG_MAP.get().unwrap().iter()
 }

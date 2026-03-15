@@ -111,7 +111,6 @@ pub struct AvatarBundle {
     pub instanced_abilities: InstancedAbilities,
     pub instanced_modifiers: InstancedModifiers,
     pub global_ability_values: GlobalAbilityValues,
-    pub skill_cd_map: SkillCDMap,
     pub life_state: LifeState,
     pub born_time: BornTime,
     pub index_in_scene_team: IndexInSceneTeam,
@@ -139,7 +138,6 @@ pub struct AvatarQueryReadOnly {
     pub instanced_abilities: &'static InstancedAbilities,
     pub instanced_modifiers: &'static InstancedModifiers,
     pub global_ability_values: &'static GlobalAbilityValues,
-    pub skill_cd_map: &'static SkillCDMap,
     pub life_state: &'static LifeState,
     pub born_time: &'static BornTime,
     pub index_in_scene_team: &'static IndexInSceneTeam,
@@ -648,7 +646,6 @@ pub fn spawn_avatar_entity(
         instanced_abilities: instanced,
         instanced_modifiers: InstancedModifiers::default(),
         global_ability_values: GlobalAbilityValues::default(),
-        skill_cd_map: SkillCDMap::default(),
         life_state: LifeState::Alive,
         equipment_weapon: EquipmentWeapon {
             weapon: weapon_entity,
