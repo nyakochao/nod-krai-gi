@@ -13,6 +13,7 @@ use nod_krai_gi_entity::common::{EntityCounter, Visible};
 use nod_krai_gi_entity::gadget::spawn_gadget_entity;
 use nod_krai_gi_event::command::{CommandItemEvent, ConsoleChatNotifyEvent};
 use nod_krai_gi_event::inventory::{ItemAddEvent, ItemDropEvent, StoreItemChangeEvent};
+use nod_krai_gi_event::scene::{WorldOwnerUID, WorldVersionConfig};
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::normal::{
@@ -54,8 +55,8 @@ pub fn item_command_handler(
                     )],
                 ));
             }
-            ItemAction::Drop { id, pos } => {
-                item_drop_events.write(ItemDropEvent(*player_uid, *pos, vec![(*id, 1)]));
+            ItemAction::Drop { id } => {
+                item_drop_events.write(ItemDropEvent(*player_uid, None, vec![(*id, 1)]));
             }
         }
     }
@@ -269,7 +270,9 @@ pub fn item_drop_handler(
     mut commands: Commands,
     mut entity_counter: ResMut<EntityCounter>,
     mut gm_notify_events: MessageWriter<ConsoleChatNotifyEvent>,
-    mut players: ResMut<Players>,
+    players: Res<Players>,
+    world_owner_uid: Res<WorldOwnerUID>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     let mut rng = SmallRng::from_entropy();
 
@@ -283,11 +286,28 @@ pub fn item_drop_handler(
         std::sync::Arc::clone(material_excel_config_collection::get());
 
     for ItemDropEvent(player_uid, pos, item_list) in events.read() {
-        let Some(player_info) = players.get_mut(*player_uid) else {
+        let mut player_uid = *player_uid;
+        if player_uid == 0 {
+            player_uid = world_owner_uid.0;
+        }
+
+        let Some(player_info) = players.get(player_uid) else {
             continue;
         };
 
-        let new_guid = player_info.next_guid();
+        let born_pos: (f32, f32, f32) = {
+            match pos {
+                None => match &player_info.scene_bin {
+                    None => (0.0, 0.0, 0.0),
+                    Some(player_scene_bin) => (
+                        player_scene_bin.my_cur_scene_pos.unwrap_or_default().x,
+                        player_scene_bin.my_cur_scene_pos.unwrap_or_default().y + 1.5,
+                        player_scene_bin.my_cur_scene_pos.unwrap_or_default().z,
+                    ),
+                },
+                Some(pos) => *pos,
+            }
+        };
 
         for (item_id, count) in item_list.iter() {
             let mut item_type = ItemType::NONE;
@@ -306,7 +326,7 @@ pub fn item_drop_handler(
                 }
             } else {
                 gm_notify_events.write(ConsoleChatNotifyEvent(
-                    *player_uid,
+                    player_uid,
                     format!("unknown id:{}", item_id),
                 ));
             }
@@ -324,7 +344,7 @@ pub fn item_drop_handler(
                     gadget_id = material_config.gadget_id;
                     item = Some(Item {
                         item_id: *item_id,
-                        guid: new_guid,
+                        guid: 0,
                         detail: Some(item::Detail::Material(Material {
                             delete_info: None,
                             count: *count,
@@ -342,7 +362,7 @@ pub fn item_drop_handler(
 
                     item = Some(Item {
                         item_id: *item_id,
-                        guid: new_guid,
+                        guid: 0,
                         detail: Some(item::Detail::Equip(Equip {
                             is_locked: false,
                             detail: Some(equip::Detail::Reliquary(Reliquary {
@@ -362,7 +382,7 @@ pub fn item_drop_handler(
 
                     item = Some(Item {
                         item_id: *item_id,
-                        guid: new_guid,
+                        guid: 0,
                         detail: Some(item::Detail::Equip(Equip {
                             is_locked: false,
                             detail: Some(equip::Detail::Weapon(Weapon {
@@ -379,19 +399,9 @@ pub fn item_drop_handler(
             match item {
                 None => {}
                 Some(item) => {
-                    let born_pos = match pos {
-                        None => match &player_info.scene_bin {
-                            None => (0.0, 0.0, 0.0),
-                            Some(player_scene_bin) => (
-                                player_scene_bin.my_cur_scene_pos.unwrap_or_default().x,
-                                player_scene_bin.my_cur_scene_pos.unwrap_or_default().y + 0.5,
-                                player_scene_bin.my_cur_scene_pos.unwrap_or_default().z,
-                            ),
-                        },
-                        Some(pos) => *pos,
-                    };
                     let born_pos = random_offset_vec3(born_pos, &mut rng);
                     let Some(gadget_entity) = spawn_gadget_entity(
+                        world_version_config.protocol_version.clone(),
                         &mut commands,
                         &mut entity_counter,
                         born_pos.into(),
@@ -410,7 +420,7 @@ pub fn item_drop_handler(
                         continue;
                     };
 
-                    commands.entity(gadget_entity).insert(Visible);
+                    commands.entity(gadget_entity.1).insert(Visible);
                 }
             }
         }
@@ -536,9 +546,9 @@ pub fn pick_four_affix_ids(
 }
 
 pub fn random_offset_vec3((x, y, z): (f32, f32, f32), rng: &mut SmallRng) -> (f32, f32, f32) {
-    let dx = rng.gen_range(-1.0..1.0);
-    let dy = rng.gen_range(-1.0..1.0);
-    let dz = rng.gen_range(-1.0..1.0);
+    let dx = rng.gen_range(-0.5..0.5);
+    let dy = rng.gen_range(-0.5..0.5);
+    let dz = rng.gen_range(-0.5..0.5);
 
     (x + dx, y + dy, z + dz)
 }

@@ -3,7 +3,7 @@ use bevy_app::prelude::*;
 use bevy_ecs::prelude::*;
 use ::common::player_cache::cache_set_is_tp;
 use ::common::time_util::unix_timestamp_ms;
-use common::{PlayerSceneState, PlayerSceneStates, ScenePeerManager, WorldOwnerUID};
+use common::{PlayerSceneState, PlayerSceneStates, ScenePeerManager};
 use enter::EnterSceneStateSystems;
 use nod_krai_gi_data::excel::{SceneTagConfig, SceneTagConfigKeyed};
 use nod_krai_gi_entity::avatar::{CurrentPlayerAvatarMarker, CurrentTeam};
@@ -19,7 +19,6 @@ use nod_krai_gi_entity::{
     EntityDisappearEvent,
 };
 use nod_krai_gi_event::scene::*;
-use nod_krai_gi_message::get_player_version;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::dy_parser::{replace_out_u32, replace_out_u64};
@@ -40,7 +39,6 @@ pub struct ScenePlugin;
 impl Plugin for ScenePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<EnterSceneStateSystems>()
-            .insert_resource(WorldOwnerUID(0))
             .insert_resource(PlayerSceneStates::default())
             .insert_resource(ScenePeerManager::default())
             .add_systems(PostStartup, init_scene)
@@ -80,12 +78,17 @@ fn init_scene(
     mut players: ResMut<Players>,
     mut entity_counter: ResMut<EntityCounter>,
     mut enter_events: MessageWriter<BeginEnterSceneEvent>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     let team_ability = Ability::new_for_team();
     let instanced = team_ability.instantiate();
     commands.spawn(TeamEntityBundle {
         marker: TeamEntityMarker,
-        entity_id: to_protocol_entity_id(ProtEntityType::ProtEntityTeam, entity_counter.inc()),
+        entity_id: to_protocol_entity_id(
+            world_version_config.protocol_version.as_str(),
+            ProtEntityType::ProtEntityTeam,
+            entity_counter.inc(),
+        ),
         ability: team_ability,
         instanced_abilities: instanced,
         instanced_modifiers: Default::default(),
@@ -94,7 +97,11 @@ fn init_scene(
 
     commands.spawn(MpLevelBundle {
         authority_peer_id: AuthorityPeerId(1),
-        entity_id: to_protocol_entity_id(ProtEntityType::ProtEntityMpLevel, entity_counter.inc()),
+        entity_id: to_protocol_entity_id(
+            world_version_config.protocol_version.as_str(),
+            ProtEntityType::ProtEntityMpLevel,
+            entity_counter.inc(),
+        ),
         marker: MpLevelEntityMarker,
     });
 
@@ -165,6 +172,7 @@ fn create_play_team_entity(
     mut commands: Commands,
     mut entity_counter: ResMut<EntityCounter>,
     play_team_entities: Query<(Entity, &OwnerPlayerUID), With<PlayTeamEntityMarker>>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for event in events.read() {
         if !play_team_entities
@@ -174,6 +182,7 @@ fn create_play_team_entity(
             commands.spawn(PlayTeamEntityBundle {
                 player_uid: OwnerPlayerUID(event.uid),
                 entity_id: to_protocol_entity_id(
+                    world_version_config.protocol_version.as_str(),
                     ProtEntityType::ProtEntityPlayTeamEntity,
                     entity_counter.inc(),
                 ),
@@ -188,10 +197,9 @@ fn notify_player_enter_scene(
     mut events: MessageReader<BeginEnterSceneEvent>,
     message_output: Res<MessageOutput>,
     player_scene_states: Res<PlayerSceneStates>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for event in events.read() {
-        let version = get_player_version!(&event.uid);
-        let protocol_version = version.as_str();
         let Some(player_scene_state) = player_scene_states.get(&event.uid) else {
             continue;
         };
@@ -215,22 +223,22 @@ fn notify_player_enter_scene(
             "PlayerEnterSceneNotify",
             nod_krai_gi_proto::normal::PlayerEnterSceneNotify {
                 scene_id: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.scene_id",
                     event.scene_id,
                 ),
                 dungeon_id: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.dungeon_id",
                     event.dungeon_id,
                 ),
                 enter_scene_token: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.enter_scene_token",
                     enter_scene_token,
                 ),
                 target_uid: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.target_uid",
                     event.uid,
                 ),
@@ -245,17 +253,17 @@ fn notify_player_enter_scene(
                 ),
                 r#type: event.enter_type.into(),
                 world_level: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.world_level",
                     9,
                 ),
                 enter_reason: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.enter_reason",
                     event.enter_reason as u32,
                 ),
                 scene_begin_time: replace_out_u64(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "PlayerEnterSceneNotify.scene_begin_time",
                     unix_timestamp_ms(),
                 ),

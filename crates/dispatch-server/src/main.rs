@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
         })?;
 
     let region_list: Vec<RegionConfig> =
-        serde_json::from_str(&fs::read_to_string(&CONFIG.region.region_list_file)?)?;
+        serde_json::from_str(&common::string_util::read_utf8_no_bom(&CONFIG.region.region_list_file)?)?;
 
     let cur_region_secret_key_ec2b = if let Some(cur_region_name) = &CONFIG.region.cur_region_name {
         let region = region_list
@@ -98,7 +98,7 @@ async fn main() -> Result<()> {
     };
 
     let key_pair_map = serde_json::from_str::<HashMap<u32, EncryptionConfig>>(
-        &fs::read_to_string(&CONFIG.region.encryption_config_path)?,
+        &common::string_util::read_utf8_no_bom(&CONFIG.region.encryption_config_path)?,
     )?
     .into_iter()
     .map(|(id, conf)| (id, RsaKeyPair::from_encryption_config(&conf)))

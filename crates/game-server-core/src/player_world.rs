@@ -11,6 +11,7 @@ use nod_krai_gi_command::CommandPlugin;
 use nod_krai_gi_data::{GAME_SERVER_CONFIG, REGION_LIST};
 use nod_krai_gi_entity::EntityPlugin;
 use nod_krai_gi_environment::EnvironmentPlugin;
+use nod_krai_gi_event::scene::{WorldOwnerUID, WorldVersionConfig};
 use nod_krai_gi_event::EventRegistryPlugin;
 use nod_krai_gi_inventory::InventoryPlugin;
 use nod_krai_gi_luashell::{LuaShellPlugin, LuaShellSettings};
@@ -22,11 +23,12 @@ use nod_krai_gi_message::{
 };
 use nod_krai_gi_pathfinding::PathfindingPlugin;
 use nod_krai_gi_persistence::Players;
+use nod_krai_gi_proto::dy_parser::get_ty_value_by_version;
 use nod_krai_gi_proto::normal::{PlayerLoginRsp, ResVersionConfig};
 use nod_krai_gi_proto::server_only::PlayerDataBin;
 use nod_krai_gi_proto::Protobuf;
 use nod_krai_gi_quest::QuestPlugin;
-use nod_krai_gi_scene::{common::WorldOwnerUID, ScenePlugin};
+use nod_krai_gi_scene::ScenePlugin;
 use nod_krai_gi_script::ScriptPlugin;
 use nod_krai_gi_social::SocialPlugin;
 use nod_krai_gi_time::TimePlugin;
@@ -45,8 +47,26 @@ impl PlayerWorld {
             .insert_resource(players)
             .add_message::<ClientMessageEvent>();
 
-        app.add_plugins(EventRegistryPlugin)
-            .add_plugins(PlayerDataSyncPlugin)
+        app.add_plugins(EventRegistryPlugin);
+
+        app.world_mut()
+            .get_resource_mut::<WorldOwnerUID>()
+            .unwrap()
+            .0 = uid;
+
+        let version = get_player_version!(&uid);
+
+        app.world_mut()
+            .get_resource_mut::<WorldVersionConfig>()
+            .unwrap()
+            .protocol_version = version.clone();
+
+        app.world_mut()
+            .get_resource_mut::<WorldVersionConfig>()
+            .unwrap()
+            .ty_value = get_ty_value_by_version(version.as_str());
+
+        app.add_plugins(PlayerDataSyncPlugin)
             .add_plugins(EntityPlugin)
             .add_plugins(ScenePlugin)
             .add_plugins(AvatarPlugin)
@@ -73,11 +93,6 @@ impl PlayerWorld {
             app.add_plugins(QuestPlugin);
         }
 
-        app.world_mut()
-            .get_resource_mut::<WorldOwnerUID>()
-            .unwrap()
-            .0 = uid;
-
         app.insert_resource(LuaShellSettings {
             startup_payloads: vec![include_bytes!("../../../assets/luashell/wm.bin")
                 .to_vec()
@@ -95,14 +110,11 @@ impl PlayerWorld {
         let mut cur_hot_fix_data = None;
 
         REGION_LIST.get().unwrap().iter().for_each(|region| {
-            region
-                .hot_fix_data
-                .iter()
-                .for_each(|(_, hot_fix_data)| {
-                    if hot_fix_data.client_data_version == client_data_version {
-                        cur_hot_fix_data = Some(hot_fix_data.clone());
-                    }
-                })
+            region.hot_fix_data.iter().for_each(|(_, hot_fix_data)| {
+                if hot_fix_data.client_data_version == client_data_version {
+                    cur_hot_fix_data = Some(hot_fix_data.clone());
+                }
+            })
         });
 
         match cur_hot_fix_data {
@@ -137,7 +149,10 @@ impl PlayerWorld {
                                 .res_version_config
                                 .release_total_size
                                 .clone(),
-                            version_suffix: cur_hot_fix_data.res_version_config.version_suffix.clone(),
+                            version_suffix: cur_hot_fix_data
+                                .res_version_config
+                                .version_suffix
+                                .clone(),
                             branch: cur_hot_fix_data.res_version_config.branch.clone(),
                             ..Default::default()
                         }),

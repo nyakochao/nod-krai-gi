@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use super::{ability::Ability, common::*};
+use crate::gadget::GadgetID;
 use crate::util::to_protocol_entity_id;
 use crate::weapon::{AffixMap, WeaponBundle, WeaponID, WeaponPromoteLevel};
 use crate::{
@@ -10,7 +11,6 @@ use crate::{
 };
 use bevy_ecs::{prelude::*, query::QueryData};
 use nod_krai_gi_data::config::{process_inherent_proud_skills, process_talent_ids};
-use nod_krai_gi_data::excel;
 use nod_krai_gi_data::excel::common::EquipType;
 use nod_krai_gi_data::excel::{
     avatar_excel_config_collection, avatar_talent_excel_config_collection,
@@ -69,6 +69,9 @@ pub struct ControlPeer(pub u32);
 pub struct SkillDepot(pub u32);
 
 #[derive(Component)]
+pub struct TalentIdList(pub Vec<u32>);
+
+#[derive(Component)]
 pub struct BornTime(pub u32);
 
 #[derive(Component, PartialEq, Eq, PartialOrd, Ord)]
@@ -102,6 +105,7 @@ pub struct AvatarBundle {
     pub core_proud_skill_level: CoreProudSkillLevel,
     pub control_peer: ControlPeer,
     pub skill_depot: SkillDepot,
+    pub talent_id_list: TalentIdList,
     pub equipment_weapon: EquipmentWeapon,
     pub appearance: AvatarAppearance,
     pub transform: Transform,
@@ -129,6 +133,7 @@ pub struct AvatarQueryReadOnly {
     pub core_proud_skill_level: &'static CoreProudSkillLevel,
     pub control_peer: &'static ControlPeer,
     pub skill_depot: &'static SkillDepot,
+    pub talent_id_list: &'static TalentIdList,
     pub equipment_weapon: &'static EquipmentWeapon,
     pub appearance: &'static AvatarAppearance,
     pub transform: &'static Transform,
@@ -375,7 +380,10 @@ fn build_fake_avatar_entity_info(
     } = weapon;
 
     let Some(skill_depot) = avatar_bin.depot_map.get(&avatar_bin.skill_depot_id) else {
-        tracing::debug!("skill_depot bin {} doesn't exist", weapon_id);
+        tracing::debug!(
+            "skill_depot bin {} doesn't exist",
+            avatar_bin.skill_depot_id
+        );
         return None;
     };
 
@@ -432,21 +440,6 @@ pub fn build_avatar_entity_info(
     weapon_data: &WeaponQueryReadOnlyItem,
 ) -> Option<SceneEntityInfo> {
     use nod_krai_gi_proto::normal::*;
-
-    let avatar_skill_depot_excel_config_collection_clone =
-        std::sync::Arc::clone(excel::avatar_skill_depot_excel_config_collection::get());
-
-    let Some(skill_depot_data) = avatar_skill_depot_excel_config_collection_clone
-        .get(&avatar_data.skill_depot.0)
-        .cloned()
-    else {
-        tracing::debug!(
-            "avatar skill depot config {} doesn't exist",
-            avatar_data.skill_depot.0
-        );
-        return None;
-    };
-
     Some(SceneEntityInfo {
         entity_type: ProtEntityType::ProtEntityAvatar.into(),
         entity_id: avatar_data.entity_id.0,
@@ -455,6 +448,7 @@ pub fn build_avatar_entity_info(
             pos: Some(avatar_data.transform.position.into()),
             rot: Some(avatar_data.transform.rotation.into()),
             speed: Some(Vector::default()),
+            state: nod_krai_gi_proto::server_only::MotionState::MotionStandby as i32,
             ..Default::default()
         }),
         prop_list: vec![
@@ -481,7 +475,7 @@ pub fn build_avatar_entity_info(
         entity_environment_info_list: Vec::with_capacity(0),
         entity_authority_info: Some(EntityAuthorityInfo {
             ability_info: Some(AbilitySyncStateInfo::default()),
-            born_pos: Some(Vector::default()),
+            born_pos: Some(avatar_data.transform.position.into()),
             client_extra_info: Some(EntityClientExtraInfo {
                 skill_anchor_position: Some(Vector::default()),
             }),
@@ -500,13 +494,7 @@ pub fn build_avatar_entity_info(
                 .map(|(_, item)| item.item_id)
                 .collect(),
             skill_depot_id: avatar_data.skill_depot.0,
-            talent_id_list: if avatar_data.core_proud_skill_level.0 as usize
-                > skill_depot_data.talents.len()
-            {
-                skill_depot_data.talents
-            } else {
-                skill_depot_data.talents[0..avatar_data.core_proud_skill_level.0 as usize].to_vec()
-            },
+            talent_id_list: avatar_data.talent_id_list.0.clone(),
             weapon: Some(SceneWeaponInfo {
                 guid: weapon_data.guid.0,
                 entity_id: weapon_data.entity_id.0,
@@ -541,6 +529,7 @@ pub fn build_avatar_entity_info(
 }
 
 pub fn spawn_avatar_entity(
+    protocol_version: String,
     commands: &mut Commands,
     entity_counter: &mut ResMut<EntityCounter>,
     avatar_bin: &AvatarBin,
@@ -596,7 +585,10 @@ pub fn spawn_avatar_entity(
     };
 
     let Some(skill_depot) = avatar_bin.depot_map.get(&avatar_bin.skill_depot_id) else {
-        tracing::debug!("skill_depot bin {} doesn't exist", weapon_id);
+        tracing::debug!(
+            "skill_depot bin {} doesn't exist",
+            avatar_bin.skill_depot_id
+        );
         return None;
     };
 
@@ -615,6 +607,7 @@ pub fn spawn_avatar_entity(
         .spawn(WeaponBundle {
             weapon_id: WeaponID(weapon_id),
             entity_id: to_protocol_entity_id(
+                protocol_version.as_str(),
                 ProtEntityType::ProtEntityWeapon,
                 entity_counter.inc(),
             ),
@@ -634,10 +627,11 @@ pub fn spawn_avatar_entity(
 
     let avatar_entity = commands.spawn(AvatarBundle {
         avatar_id: AvatarID(avatar_bin.avatar_id),
-        entity_id: to_protocol_entity_id(ProtEntityType::ProtEntityAvatar, entity_counter.inc()),
+        entity_id: to_protocol_entity_id(protocol_version.as_str(),ProtEntityType::ProtEntityAvatar, entity_counter.inc()),
         guid: Guid(avatar_bin.guid),
         control_peer: ControlPeer(peer_id),
         skill_depot: SkillDepot(avatar_bin.skill_depot_id),
+        talent_id_list: TalentIdList(skill_depot.talent_id_list.clone()),
         core_proud_skill_level: CoreProudSkillLevel(skill_depot.core_proud_skill_level),
         level: Level(avatar_bin.level),
         break_level: AvatarPromoteLevel(avatar_bin.promote_level),

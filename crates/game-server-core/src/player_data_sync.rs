@@ -27,7 +27,7 @@ impl Plugin for PlayerDataSyncPlugin {
     }
 }
 
-pub fn sync_player_data(players: Res<Players>, out: Res<MessageOutput>) {
+pub fn sync_player_data(players: Res<Players>, message_output: Res<MessageOutput>) {
     for uid in players.keys() {
         let Some(player_info) = players.get(*uid) else {
             continue;
@@ -35,7 +35,7 @@ pub fn sync_player_data(players: Res<Players>, out: Res<MessageOutput>) {
         let Some(ref player_basic_bin) = player_info.basic_bin else {
             continue;
         };
-        out.send(
+        message_output.send(
             *uid,
             "PlayerDataNotify",
             PlayerDataNotify {
@@ -68,7 +68,7 @@ pub fn sync_player_data(players: Res<Players>, out: Res<MessageOutput>) {
     }
 }
 
-pub fn sync_player_store(players: Res<Players>, out: Res<MessageOutput>) {
+pub fn sync_player_store(players: Res<Players>, message_output: Res<MessageOutput>) {
     for uid in players.keys() {
         let Some(player_info) = players.get(*uid) else {
             continue;
@@ -77,7 +77,7 @@ pub fn sync_player_store(players: Res<Players>, out: Res<MessageOutput>) {
             continue;
         };
 
-        out.send(
+        message_output.send(
             *uid,
             "PlayerStoreNotify",
             PlayerStoreNotify {
@@ -92,7 +92,7 @@ pub fn sync_player_store(players: Res<Players>, out: Res<MessageOutput>) {
     }
 }
 
-pub fn sync_avatar_data(players: Res<Players>, out: Res<MessageOutput>) {
+pub fn sync_avatar_data(players: Res<Players>, message_output: Res<MessageOutput>) {
     let avatar_excel_config_collection_clone =
         std::sync::Arc::clone(excel::avatar_excel_config_collection::get());
 
@@ -108,7 +108,7 @@ pub fn sync_avatar_data(players: Res<Players>, out: Res<MessageOutput>) {
             continue;
         };
 
-        out.send(
+        message_output.send(
             *uid,
             "AvatarDataNotify",
             AvatarDataNotify {
@@ -249,12 +249,12 @@ pub fn sync_avatar_data(players: Res<Players>, out: Res<MessageOutput>) {
     }
 }
 
-pub fn sync_open_state_map(players: Res<Players>, out: Res<MessageOutput>) {
+pub fn sync_open_state_map(players: Res<Players>, message_output: Res<MessageOutput>) {
     let open_state_config_collection_clone =
         std::sync::Arc::clone(excel::open_state_config_collection::get());
 
     for uid in players.keys() {
-        out.send(
+        message_output.send(
             *uid,
             "OpenStateUpdateNotify",
             OpenStateUpdateNotify {
@@ -267,7 +267,7 @@ pub fn sync_open_state_map(players: Res<Players>, out: Res<MessageOutput>) {
     }
 }
 
-pub fn sync_quest_list(players: Res<Players>, out: Res<MessageOutput>) {
+pub fn sync_quest_list(players: Res<Players>, message_output: Res<MessageOutput>) {
     for uid in players.keys() {
         let Some(player_info) = players.get(*uid) else {
             continue;
@@ -280,7 +280,7 @@ pub fn sync_quest_list(players: Res<Players>, out: Res<MessageOutput>) {
             continue;
         };
 
-        out.send(
+        message_output.send(
             *uid,
             "QuestListNotify",
             QuestListNotify {

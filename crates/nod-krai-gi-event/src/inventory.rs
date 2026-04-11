@@ -18,4 +18,4 @@ pub struct ItemAddEvent(
 );
 
 #[derive(Message)]
-pub struct ItemDropEvent(pub u32, pub Option<(f32, f32, f32)>, pub Vec<(u32,u32)>);
+pub struct ItemDropEvent(pub u32, pub Option<(f32, f32, f32)>, pub Vec<(u32, u32)>);

@@ -38,16 +38,31 @@ impl Plugin for EventRegistryPlugin {
             .add_message::<ItemDropEvent>()
             //entity
             .add_message::<GadgetInteractEvent>()
-            .add_message::<EntityStateChangeEvent>()
+            .add_message::<GadgetStateChangeEvent>()
             //lua
             .add_message::<LuaTriggerEvent>()
+            .add_message::<ScriptCommandEvent>()
             .add_message::<SpawnGroupEntityEvent>()
             .add_message::<DespawnGroupEntityEvent>()
+            .add_message::<SpawnSuiteEntitiesEvent>()
+            .add_message::<DespawnSuiteEntitiesEvent>()
+            .add_message::<RefreshGroupEntityEvent>()
+            .add_message::<OnClientExecuteReqEvent>()
+            .add_message::<OnBeHurtEvent>()
+            .add_message::<ChallengeStartEvent>()
+            .add_message::<ChallengeFinishEvent>()
+            .add_message::<ChallengeProgressEvent>()
+            .add_message::<MonsterKillEvent>()
             //quest
             .add_message::<QuestBeginEvent>()
             .add_message::<QuestFinishEvent>()
             .add_message::<QuestListUpdateEvent>()
             //scene
+            .insert_resource(WorldOwnerUID(0))
+            .insert_resource(WorldVersionConfig{
+                protocol_version: "unknown version".to_string(),
+                ty_value: 24,
+            })
             .add_message::<BeginEnterSceneEvent>()
             .add_message::<EnterSceneReadyEvent>()
             .add_message::<SceneInitFinishEvent>()

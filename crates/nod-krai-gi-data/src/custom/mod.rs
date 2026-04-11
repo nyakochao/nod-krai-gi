@@ -1,12 +1,14 @@
 mod gacha_banner;
 mod drop_sub_table_excel_config;
 mod drop_table_excel_config;
+mod gadget_mapping;
 mod quest_encryption_key;
 mod combined_drop;
 
 pub use gacha_banner::*;
 pub use drop_sub_table_excel_config::*;
 pub use drop_table_excel_config::*;
+pub use gadget_mapping::*;
 pub use quest_encryption_key::*;
 pub use combined_drop::*;
 

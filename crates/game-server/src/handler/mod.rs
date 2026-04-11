@@ -229,11 +229,16 @@ async fn handle_packet(
                                                         PacketHead::default(),
                                                         &body,
                                                     );
+
+                                                    tracing::debug!("GetPlayerTokenRsp send packet: {}", hex::encode(&data));
+
                                                     util::xor_packet(
                                                         None,
                                                         state.initial_xor_pad.as_ref(),
                                                         &mut data,
                                                     );
+
+
                                                     session.connection.send(data).await;
                                                 }
                                             }
@@ -310,7 +315,7 @@ async fn handle_packet(
                                     match nod_krai_gi_proto::dy_parser::encode_to_vec_by_name_version::<
                                         PingRsp,
                                     >(
-                                        version, "PingRsp", &ping_rsp
+                                        version, "PingRsp", &ping_rsp,
                                     ) {
                                         None => {
                                             tracing::error!(
@@ -380,23 +385,23 @@ async fn handle_packet(
                         }
                     }
                 }
-                _ => {
-                    let user_id = *session.player_uid.get().unwrap();
-                    let user_session_id = session.connection.conv;
-
-                    let head = PacketHead {
-                        user_id,
-                        user_session_id,
-                        ..Default::default()
-                    };
-                    state.logic_simulator.add_client_packet(
-                        user_id,
-                        head,
-                        cmd_id,
-                        packet.body().into(),
-                        true,
-                    );
-                }
+                _ => match session.player_uid.get() {
+                    None => {}
+                    Some(user_id) => {
+                        let head = PacketHead {
+                            user_id: *user_id,
+                            user_session_id: session.connection.conv,
+                            ..Default::default()
+                        };
+                        state.logic_simulator.add_client_packet(
+                            *user_id,
+                            head,
+                            cmd_id,
+                            packet.body().into(),
+                            true,
+                        );
+                    }
+                },
             }
         }
         _ => {}

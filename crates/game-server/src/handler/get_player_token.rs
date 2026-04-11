@@ -38,9 +38,6 @@ pub fn process_message(
         };
     }
 
-    cache_set_online_status(uid, PlayerStatusType::PlayerStatusOnline);
-    cache_set_language(uid, language);
-
     if let Some(account_uid) = session.account_uid.get() {
         tracing::debug!("repeated GetPlayerTokenReq (account_uid: {account_uid})");
         return rsp;
@@ -53,6 +50,8 @@ pub fn process_message(
     let _ = session.xor_pad.set(xor_pad);
     let _ = session.account_uid.set(req.account_uid);
     let _ = session.player_uid.set(uid);
+    cache_set_online_status(uid, PlayerStatusType::PlayerStatusOnline);
+    cache_set_language(uid, language);
 
     GetPlayerTokenRsp {
         retcode: Retcode::RetSucc.into(),

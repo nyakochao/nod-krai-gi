@@ -1,17 +1,18 @@
 use crate::common::{PlayerSceneStates, ScenePeerManager};
 use bevy_ecs::prelude::*;
 use nod_krai_gi_event::scene::*;
-use nod_krai_gi_message::get_player_version;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
-use nod_krai_gi_proto::dy_parser::replace_out_u32;
+use nod_krai_gi_proto::dy_parser::{replace_out_i32, replace_out_u32};
+use nod_krai_gi_proto::retcode::Retcode;
 
 pub fn on_enter_scene_ready(
     mut reader: MessageReader<EnterSceneReadyEvent>,
-    out: Res<MessageOutput>,
+    message_output: Res<MessageOutput>,
     player_scene_states: Res<PlayerSceneStates>,
     players: Res<Players>,
     mut peer_manager: ResMut<ScenePeerManager>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for event in reader.read() {
         let uid = event.0;
@@ -33,15 +34,12 @@ pub fn on_enter_scene_ready(
             peer_manager.make_host(peer_id);
         }
 
-        let version = get_player_version!(&uid);
-        let protocol_version = version.as_str();
-
-        out.send(
+        message_output.send(
             uid,
             "EnterScenePeerNotify",
             nod_krai_gi_proto::normal::EnterScenePeerNotify {
                 enter_scene_token: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "EnterScenePeerNotify.enter_scene_token",
                     enter_scene_token,
                 ),
@@ -51,16 +49,20 @@ pub fn on_enter_scene_ready(
             },
         );
 
-        out.send(
+        message_output.send(
             uid,
             "EnterSceneReadyRsp",
             nod_krai_gi_proto::normal::EnterSceneReadyRsp {
+                retcode: replace_out_i32(
+                    world_version_config.protocol_version.as_str(),
+                    "EnterSceneReadyRsp.retcode",
+                    Retcode::RetSucc.into(),
+                ),
                 enter_scene_token: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "EnterSceneReadyRsp.enter_scene_token",
                     enter_scene_token,
                 ),
-                retcode: nod_krai_gi_proto::retcode::Retcode::RetSucc.into(),
             },
         );
     }

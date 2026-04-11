@@ -1,4 +1,4 @@
-use crate::excel::common::{EntityType, QuestState, VisionLevelType};
+use crate::excel::common::{ElementType, EntityType, QuestState, VisionLevelType};
 use crate::scene::scene_block_template::*;
 use crate::scene::scene_config_template::*;
 use crate::scene::scene_group_template::*;
@@ -30,31 +30,7 @@ pub static SCENE_LUA_VM: OnceLock<Lua> = OnceLock::new();
 pub fn load_lua_vm(root: &str) {
     let lua = Lua::new();
 
-    // all enum
-    inject_enum::<EventType>(&lua, "EventType").ok().unwrap();
-    inject_enum::<GadgetState>(&lua, "GadgetState")
-        .ok()
-        .unwrap();
-    inject_enum::<RegionShape>(&lua, "RegionShape")
-        .ok()
-        .unwrap();
-    inject_enum::<GroupKillPolicy>(&lua, "GroupKillPolicy")
-        .ok()
-        .unwrap();
-    inject_enum::<SealBattleType>(&lua, "SealBattleType")
-        .ok()
-        .unwrap();
-    inject_enum::<FatherChallengeProperty>(&lua, "FatherChallengeProperty")
-        .ok()
-        .unwrap();
-    inject_enum::<ChallengeEventMarkType>(&lua, "ChallengeEventMarkType")
-        .ok()
-        .unwrap();
-    inject_enum::<EntityType>(&lua, "EntityType").ok().unwrap();
-    inject_enum::<QuestState>(&lua, "QuestState").ok().unwrap();
-    inject_enum::<VisionLevelType>(&lua, "VisionLevelType")
-        .ok()
-        .unwrap();
+    register_all_enums(&lua);
 
     let modules = load_lua_directory(root);
 
@@ -62,6 +38,23 @@ pub fn load_lua_vm(root: &str) {
 
     SCENE_LUA_VM.set(lua).unwrap();
 }
+
+
+pub fn register_all_enums(lua: &Lua) {
+    // 你所有的枚举都在这里统一注册
+    inject_enum::<EventType>(lua, "EventType").unwrap();
+    inject_enum::<GadgetState>(lua, "GadgetState").unwrap();
+    inject_enum::<RegionShape>(lua, "RegionShape").unwrap();
+    inject_enum::<GroupKillPolicy>(lua, "GroupKillPolicy").unwrap();
+    inject_enum::<SealBattleType>(lua, "SealBattleType").unwrap();
+    inject_enum::<FatherChallengeProperty>(lua, "FatherChallengeProperty").unwrap();
+    inject_enum::<ChallengeEventMarkType>(lua, "ChallengeEventMarkType").unwrap();
+    inject_enum::<ElementType>(lua, "ElementType").unwrap();
+    inject_enum::<EntityType>(lua, "EntityType").unwrap();
+    inject_enum::<QuestState>(lua, "QuestState").unwrap();
+    inject_enum::<VisionLevelType>(lua, "VisionLevelType").unwrap();
+}
+
 
 fn load_lua_directory(root: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
@@ -77,7 +70,7 @@ fn scan_dir(root: &Path, path: &Path, map: &mut HashMap<String, String>) {
         if path.is_dir() {
             scan_dir(root, &path, map);
         } else if path.extension().and_then(|s| s.to_str()) == Some("lua") {
-            let content = fs::read_to_string(&path).unwrap();
+            let content = common::string_util::read_utf8_no_bom(&path).unwrap();
 
             let rel = path.strip_prefix(root).unwrap();
             let module_name = rel
@@ -164,7 +157,7 @@ pub fn init_scene_static_templates(root: &str) {
 fn load_scene_config_file(path: &Path) -> Option<SceneConfigTemplate> {
     let lua = Lua::new();
 
-    let code = fs::read_to_string(path).ok()?;
+    let code = common::string_util::read_utf8_no_bom(path).ok()?;
     lua.load(&code).exec().ok()?;
 
     let globals = lua.globals();
@@ -183,7 +176,7 @@ fn load_scene_config_file(path: &Path) -> Option<SceneConfigTemplate> {
 fn load_scene_block_file(path: &Path) -> Option<SceneBlockTemplate> {
     let lua = Lua::new();
 
-    let code = fs::read_to_string(path).ok()?;
+    let code = common::string_util::read_utf8_no_bom(path).ok()?;
     lua.load(&code).exec().ok()?;
 
     let globals = lua.globals();
@@ -230,8 +223,11 @@ pub fn load_scene_group(
 ) -> Option<SceneGroupTemplate> {
     let globals = lua.globals();
 
+     let script_name = format!("scene{}_group{}", scene_id, group_id);
+     let env = globals.get::<mlua::Table>(script_name.clone()).ok()?;
+
     // monsters
-    let monsters = match lua.from_value(globals.get::<Value>("monsters").ok()?) {
+    let monsters = match lua.from_value(env.get::<Value>("monsters").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!(
@@ -243,7 +239,7 @@ pub fn load_scene_group(
     };
 
     // gadgets
-    let gadgets = match lua.from_value(globals.get::<Value>("gadgets").ok()?) {
+    let gadgets = match lua.from_value(env.get::<Value>("gadgets").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!("load_scene_group {} parse gadgets error: {}", group_id, err);
@@ -252,7 +248,7 @@ pub fn load_scene_group(
     };
 
     // regions
-    let regions = match lua.from_value(globals.get::<Value>("regions").ok()?) {
+    let regions = match lua.from_value(env.get::<Value>("regions").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!("load_scene_group {} parse regions error: {}", group_id, err);
@@ -261,7 +257,7 @@ pub fn load_scene_group(
     };
 
     // triggers
-    let triggers = match lua.from_value(globals.get::<Value>("triggers").ok()?) {
+    let triggers = match lua.from_value(env.get::<Value>("triggers").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!(
@@ -273,7 +269,7 @@ pub fn load_scene_group(
     };
 
     // variables
-    let variables = match lua.from_value(globals.get::<Value>("variables").ok()?) {
+    let variables = match lua.from_value(env.get::<Value>("variables").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!(
@@ -285,7 +281,7 @@ pub fn load_scene_group(
     };
 
     // init_config
-    let init_config = match lua.from_value(globals.get::<Value>("init_config").ok()?) {
+    let init_config = match lua.from_value(env.get::<Value>("init_config").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!(
@@ -297,7 +293,7 @@ pub fn load_scene_group(
     };
 
     // suites
-    let suites = match lua.from_value(globals.get::<Value>("suites").ok()?) {
+    let suites = match lua.from_value(env.get::<Value>("suites").ok()?) {
         Ok(v) => v,
         Err(err) => {
             println!("load_scene_group {} parse suites error: {}", group_id, err);

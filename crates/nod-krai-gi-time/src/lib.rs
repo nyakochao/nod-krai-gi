@@ -7,8 +7,8 @@ use nod_krai_gi_event::scene::*;
 use nod_krai_gi_message::{event::ClientMessageEvent, output::MessageOutput};
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::normal::{
-    ClientSetGameTimeReq, ClientSetGameTimeRsp, PlayerGameTimeNotify, PlayerSetPauseReq,
-    PlayerSetPauseRsp, PlayerTimeNotify, ServerTimeNotify,
+    ChangeGameTimeReq, ChangeGameTimeRsp, ClientSetGameTimeReq, ClientSetGameTimeRsp,
+    PlayerGameTimeNotify, PlayerSetPauseReq, PlayerSetPauseRsp, PlayerTimeNotify, ServerTimeNotify,
 };
 use nod_krai_gi_proto::retcode::Retcode;
 pub struct TimePlugin;
@@ -87,6 +87,43 @@ pub fn client_set_game_time(
                                 uid,
                                 is_home: false,
                                 game_time: time.game_time,
+                            },
+                        );
+                    }
+
+                    message_output.send(uid, "ClientSetGameTimeRsp", rsp);
+                }
+            }
+            "ChangeGameTimeReq" => {
+                if let Some(request) = message.decode::<ChangeGameTimeReq>() {
+                    let uid = message.sender_uid();
+                    let Some(player_info) = players.get(uid) else {
+                        continue;
+                    };
+                    let Some(ref player_basic_bin) = player_info.basic_bin else {
+                        continue;
+                    };
+                    let mut rsp = ChangeGameTimeRsp::default();
+
+                    if player_basic_bin.is_game_time_locked {
+                        tracing::debug!("game time is locked, uid: {uid}");
+                        rsp.retcode = Retcode::RetPlayerTimeLocked.into();
+                    } else {
+                        tracing::debug!("set game time to {}, uid: {uid}", request.game_time);
+
+                        let mut diff = request.game_time - time.game_time;
+                        if request.game_time < time.game_time {
+                            diff = 1440 + request.game_time - time.game_time;
+                        }
+
+                        time.game_time += request.extra_days * 1440 * 1000 + diff * 1000;
+
+                        message_output.send_to_all(
+                            "ChangeGameTimeRsp",
+                            ChangeGameTimeRsp {
+                                retcode: 0,
+                                cur_game_time: time.game_time,
+                                extra_days: request.extra_days,
                             },
                         );
                     }

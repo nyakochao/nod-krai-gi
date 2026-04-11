@@ -1,6 +1,5 @@
 use common::string_util::InternString;
 use std::collections::HashMap;
-use std::sync::Arc;
 
 static COMBINED_DROP_DATA: std::sync::OnceLock<
     std::sync::Arc<HashMap<InternString, Vec<CombinedDrop>>>,
@@ -61,7 +60,7 @@ impl CombinedDrop {
             v.sort_by(|a, b| b.min_level.cmp(&a.min_level));
         });
 
-        COMBINED_DROP_DATA.set(Arc::new(data)).unwrap();
+        COMBINED_DROP_DATA.set(std::sync::Arc::new(data)).unwrap();
     }
 
     pub fn get_drop_config(drop_tag: String, level: u32) -> Option<CombinedDrop> {

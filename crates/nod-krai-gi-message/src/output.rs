@@ -43,6 +43,12 @@ impl MessageOutput {
         }
     }
 
+    pub fn send_none_with_cmd_id(&self, player_uid: u32, cmd_id: u16) {
+        if let Some(out) = self.0.get(&player_uid) {
+            out.push_none_with_cmd_id(PacketHead::default(), cmd_id);
+        }
+    }
+
     pub fn send_to_all<T>(&self, message_name: &str, message: T)
     where
         T: Sized + Serialize + Clone,
@@ -185,5 +191,13 @@ impl ClientOutput {
                 ));
             }
         }
+    }
+
+    pub fn push_none_with_cmd_id(&self, head: PacketHead, cmd_id: u16) {
+        let _ = self.0.blocking_send((
+            cmd_id,
+            head,
+            Vec::new().into_boxed_slice(), //占位
+        ));
     }
 }

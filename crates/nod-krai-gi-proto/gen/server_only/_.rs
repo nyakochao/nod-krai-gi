@@ -12195,7 +12195,7 @@ pub struct PlayerBasicCompBin {
     pub set_language_tag: u32,
     #[prost(uint32, tag = "27")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub head_image_avatar_id: u32,
+    pub profile_picture_id: u32,
     #[prost(uint32, tag = "28")]
     #[serde(skip_serializing_if = "crate::is_default")]
     pub guid_seq_id: u32,
@@ -12228,7 +12228,7 @@ pub struct PlayerBasicCompBin {
     pub is_auto_unlock_specific_equip: bool,
     #[prost(uint32, tag = "38")]
     #[serde(skip_serializing_if = "crate::is_default")]
-    pub profile_picture_costume_id: u32,
+    pub profile_frame_id: u32,
     #[prost(string, tag = "39")]
     #[serde(skip_serializing_if = "crate::is_default")]
     pub online_id: ::prost::alloc::string::String,

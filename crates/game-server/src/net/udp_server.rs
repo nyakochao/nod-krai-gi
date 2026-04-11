@@ -133,6 +133,7 @@ impl UdpServer {
                 }
             }
             ControlPacketType::Establish => None,
+            ControlPacketType::Pre => None,
         }
     }
 }
@@ -203,7 +204,7 @@ impl ConnectionManager {
         let mut remove_list: Vec<(u32, u32)> = Vec::new();
         let now = tokio::time::Instant::now();
         self.last_seen.iter().for_each(|x| {
-            if now.duration_since(*x.value()) > tokio::time::Duration::from_secs(60) {
+            if now.duration_since(*x.value()) > tokio::time::Duration::from_secs(30) {
                 remove_list.push((
                     self.connections.get(x.key()).unwrap().conv,
                     self.connections.get(x.key()).unwrap().token,

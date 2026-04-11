@@ -64,16 +64,16 @@ mod tests {
         load_lua_vm("../../assets/lua/common");
         let lua = SCENE_LUA_VM.get().unwrap().clone();
 
-        let scene_id = 3;
-        let block_id = 1061;
-        let group_id = 131061695;
+        let scene_id = 40501;
+        let block_id = 40501;
+        let group_id = 240501002;
 
         let path = format!(
             "../../assets/lua/scene/{}/scene{}_group{}.lua",
             scene_id, scene_id, group_id
         );
 
-        let Ok(code) = fs::read_to_string(&path) else {
+        let Ok(code) = common::string_util::read_utf8_no_bom(&path) else {
             println!("load_scene_group failed read scene {}", path);
             return;
         };
@@ -161,10 +161,10 @@ mod tests {
 
     #[test]
     fn test_rtree_query_performance() {
-        let scene_id = 3;
+        let scene_id = 40501;
         let cache_path = format!("../../assets/cache/scene_cache_{}.json", scene_id);
 
-        let cache_data = fs::read_to_string(&cache_path).expect("Failed to read cache file");
+        let cache_data = common::string_util::read_utf8_no_bom(&cache_path).expect("Failed to read cache file");
         let cache: GroupSpatialCache =
             serde_json::from_str(&cache_data).expect("Failed to parse cache");
 

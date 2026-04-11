@@ -251,7 +251,7 @@ pub struct AbilityModifierAction {
     #[serde(default)]
     pub duration_ratio: f32,
     #[serde(default)]
-    pub element_type: InternString,
+    pub element_type: ElementType,
     #[serde(default)]
     pub skill_slot: Vec<u32>,
     #[serde(default)]
@@ -399,6 +399,7 @@ impl From<&str> for AbilityTargettingEnum {
 use common::string_util::InternString;
 use serde::Deserializer;
 use serde_json::Value;
+use crate::excel::common::ElementType;
 
 fn deserialize_modifiers<'de, D>(
     deserializer: D,

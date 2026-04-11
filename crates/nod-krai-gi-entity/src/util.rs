@@ -1,12 +1,14 @@
 use crate::common::FightProperties;
 use crate::common::ProtocolEntityID;
 use nod_krai_gi_data::excel::{GadgetExcelConfig, MonsterExcelConfig};
+use nod_krai_gi_proto::dy_parser::get_ty_value_by_version;
 
-pub const fn to_protocol_entity_id(
+pub fn to_protocol_entity_id(
+    protocol_version: &str,
     ty: nod_krai_gi_proto::normal::ProtEntityType,
     index: u32,
 ) -> ProtocolEntityID {
-    ProtocolEntityID(((ty as u32) << 22) | index)
+    ProtocolEntityID(((ty as u32) << get_ty_value_by_version(protocol_version)) | index)
 }
 
 #[macro_export]
@@ -37,7 +39,9 @@ macro_rules! int_prop_pair {
             prop_value: Some(::nod_krai_gi_proto::normal::PropValue {
                 r#type: ::nod_krai_gi_data::prop_type::$prop_name,
                 val: $value as i64,
-                value: Some(::nod_krai_gi_proto::normal::prop_value::Value::Ival($value as i64)),
+                value: Some(::nod_krai_gi_proto::normal::prop_value::Value::Ival(
+                    $value as i64,
+                )),
             }),
         }
     };

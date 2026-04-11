@@ -4,10 +4,9 @@ use common::language::Language;
 use common::player_cache::{cache_get_is_notify, cache_get_language, cache_set_is_notify};
 use nod_krai_gi_event::combat::PlayerMoveEvent;
 use nod_krai_gi_event::scene::*;
-use nod_krai_gi_message::get_player_version;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
-use nod_krai_gi_proto::dy_parser::replace_out_u32;
+use nod_krai_gi_proto::dy_parser::{replace_out_i32, replace_out_u32};
 use nod_krai_gi_proto::normal::{AntiAddictNotify, SceneInitFinishRsp};
 use nod_krai_gi_proto::retcode::Retcode;
 
@@ -54,6 +53,7 @@ pub fn on_scene_init_finish(
                 }
             }
         };
+
         let Some(ref mut player_avatar_bin) = player_info.avatar_bin else {
             continue;
         };
@@ -102,11 +102,10 @@ pub fn scene_init_finish_send_rsp(
     player_scene_states: Res<PlayerSceneStates>,
     message_output: Res<MessageOutput>,
     mut lua_shell_events: MessageWriter<nod_krai_gi_event::luashell::LuaShellEvent>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for event in scene_init_finish_events.read() {
         let uid = event.0;
-        let version = get_player_version!(&uid);
-        let protocol_version = version.as_str();
 
         let Some(player_scene_state) = player_scene_states.get(&uid) else {
             continue;
@@ -116,14 +115,19 @@ pub fn scene_init_finish_send_rsp(
             uid,
             "SceneInitFinishRsp",
             SceneInitFinishRsp {
-                retcode: Retcode::RetSucc.into(),
+                retcode: replace_out_i32(
+                    world_version_config.protocol_version.as_str(),
+                    "SceneInitFinishRsp.retcode",
+                    Retcode::RetSucc.into(),
+                ),
                 enter_scene_token: replace_out_u32(
-                    protocol_version,
+                    world_version_config.protocol_version.as_str(),
                     "SceneInitFinishRsp.enter_scene_token",
                     player_scene_state.enter_scene_token(),
                 ),
             },
         );
+
         if !cache_get_is_notify(uid).unwrap_or_default() {
             cache_set_is_notify(uid, true);
             let language = cache_get_language(uid).unwrap_or(Language::Chs);

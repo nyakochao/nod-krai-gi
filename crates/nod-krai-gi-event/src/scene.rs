@@ -78,6 +78,15 @@ impl From<u32> for EnterReason {
     }
 }
 
+#[derive(bevy_ecs::resource::Resource)]
+pub struct WorldOwnerUID(pub u32);
+
+#[derive(bevy_ecs::resource::Resource)]
+pub struct WorldVersionConfig {
+    pub protocol_version: String,
+    pub ty_value: u32,
+}
+
 #[derive(Message)]
 pub struct BeginEnterSceneEvent {
     pub uid: u32,

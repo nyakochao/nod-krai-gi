@@ -18,6 +18,7 @@ use nod_krai_gi_data::{
     },
     prop_type::FightPropType,
 };
+use nod_krai_gi_proto::dy_parser::get_ty_value_by_version;
 use nod_krai_gi_proto::normal::ProtEntityType;
 use nod_krai_gi_proto::server_only::{equip_bin, item_bin, AvatarBin};
 
@@ -216,8 +217,15 @@ impl InstancedModifiers {
         self.modifiers.get_mut(&id)
     }
 
-    pub fn get_by_name(&self, ability_index: u32,modifier_name:&InternString) -> Option<&InstancedModifier> {
-        self.modifiers.iter().find(|(_, m)| m.ability_index == Some(ability_index)&&m.name == *modifier_name).map(|(_, m)| m)
+    pub fn get_by_name(
+        &self,
+        ability_index: u32,
+        modifier_name: &InternString,
+    ) -> Option<&InstancedModifier> {
+        self.modifiers
+            .iter()
+            .find(|(_, m)| m.ability_index == Some(ability_index) && m.name == *modifier_name)
+            .map(|(_, m)| m)
     }
 
     pub fn insert(&mut self, id: u32, ctrl: InstancedModifier) {
@@ -227,7 +235,6 @@ impl InstancedModifiers {
     pub fn remove(&mut self, id: &u32) {
         self.modifiers.remove(id);
     }
-
 }
 
 pub struct InstancedModifier {
@@ -269,9 +276,6 @@ pub struct Visible;
 
 #[derive(Component)]
 pub struct ToBeRemovedMarker;
-
-#[derive(Component)]
-pub struct GadgetID(pub u32);
 
 #[derive(Resource, Default)]
 pub struct EntityCounter(u32);
@@ -406,8 +410,9 @@ impl FightProperties {
 }
 
 impl ProtocolEntityID {
-    pub fn entity_type(&self) -> ProtEntityType {
-        ProtEntityType::try_from((self.0 >> 22) as i32).unwrap_or_default()
+    pub fn entity_type(&self, protocol_version: &str) -> ProtEntityType {
+        ProtEntityType::try_from((self.0 >> get_ty_value_by_version(protocol_version)) as i32)
+            .unwrap_or_default()
     }
 }
 

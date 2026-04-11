@@ -8,6 +8,7 @@ bevy_app.workspace = true
 bevy_ecs.workspace = true
 tracing.workspace = true
 rand.workspace = true
+serde_json.workspace = true
 
 common.workspace = true
 

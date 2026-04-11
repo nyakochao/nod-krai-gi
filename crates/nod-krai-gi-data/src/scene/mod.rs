@@ -1,3 +1,5 @@
+pub mod challenge;
+pub mod group_entity_state_cache;
 pub mod group_spatial_cache;
 pub mod scene_block_template;
 pub mod scene_config_template;
@@ -9,7 +11,7 @@ pub use scene_point_config::*;
 
 use crate::excel::common::LuaEnum;
 use crate::lua_enum;
-use mlua::{IntoLua, Result, Value};
+use mlua::{IntoLua, Result, Table, Value};
 use mlua::{Lua, Result as LuaResult};
 
 #[derive(Debug, Clone, Default, serde::Deserialize)]
@@ -42,11 +44,13 @@ impl Position {
 
 impl From<(f32, f32, f32)> for Position {
     fn from(v: (f32, f32, f32)) -> Self {
-        Position { x: v.0, y: v.1, z: v.2 }
+        Position {
+            x: v.0,
+            y: v.1,
+            z: v.2,
+        }
     }
 }
-
-
 
 pub fn inject_enum<E: LuaEnum>(lua: &Lua, table_name: &str) -> LuaResult<()> {
     let globals = lua.globals();
@@ -553,14 +557,19 @@ lua_enum! {
 pub struct LuaContext {
     pub scene_id: u32,
     pub group_id: u32,
+    pub config_id: u32,
+    pub source_entity_id: u32,
+    pub target_entity_id: u32,
     pub uid: u32,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct LuaEvt {
     pub param1: u32,
     pub param2: u32,
+    pub param3: u32,
     pub source_eid: u32,
+    pub target_eid: u32,
 }
 
 impl IntoLua for LuaContext {
@@ -568,6 +577,10 @@ impl IntoLua for LuaContext {
         let tbl = lua.create_table()?;
         tbl.set("scene_id", self.scene_id)?;
         tbl.set("group_id", self.group_id)?;
+        tbl.set("config_id", self.config_id)?;
+        tbl.set("source_entity_id", self.source_entity_id)?;
+        tbl.set("target_entity_id", self.target_entity_id)?;
+        tbl.set("uid", self.uid)?;
         Ok(Value::Table(tbl))
     }
 }
@@ -577,7 +590,77 @@ impl IntoLua for LuaEvt {
         let tbl = lua.create_table()?;
         tbl.set("param1", self.param1)?;
         tbl.set("param2", self.param2)?;
+        tbl.set("param3", self.param3)?;
         tbl.set("source_eid", self.source_eid)?;
+        tbl.set("target_eid", self.target_eid)?;
         Ok(Value::Table(tbl))
     }
+}
+
+pub enum ScriptCommand {
+    AddExtraGroupSuite {
+        ctx: Table,
+        group_id: u32,
+        suite_id: u32,
+    },
+    RemoveExtraGroupSuite {
+        ctx: Table,
+        group_id: u32,
+        suite_id: u32,
+    },
+
+    LoadGroup {
+        scene_id: u32,
+        block_id: u32,
+        group_id: u32,
+    },
+
+    UnloadGroup {
+        group_id: u32,
+    },
+
+    RefreshGroup {
+        group_id: u32,
+        suite_id: u32,
+    },
+    DelWorktopOptionByGroupId {
+        group_id: u32,
+        config_id: u32,
+        option: u32,
+    },
+    SetWorktopOptionsByGroupId {
+        group_id: u32,
+        config_id: u32,
+        option_list: Vec<u32>,
+    },
+    SetGadgetStateByConfigId {
+        group_id: u32,
+        config_id: u32,
+        state: u32,
+    },
+    ResetGadgetStateByConfigId {
+        group_id: u32,
+        config_id: u32,
+        state: u32,
+    },
+    ActiveChallenge {
+        group_id: u32,
+        source: u32,
+        challenge_id: u32,
+        challenge_index: u32,
+        param1: u32,
+        param2: u32,
+        param3: u32,
+        param4: u32,
+    },
+    StopChallenge {
+        group_id: u32,
+        challenge_index: u32,
+        is_success: bool,
+    },
+    AddChallengeProgress {
+        group_id: u32,
+        challenge_index: u32,
+        progress: u32,
+    },
 }

@@ -9,10 +9,12 @@ use game_server_core::LogicSimulator;
 use net::UdpServer;
 use nod_krai_gi_data::ability::load_ability_configs_from_bin;
 use nod_krai_gi_data::config::load_avatar_talent_configs_from_bin;
-use nod_krai_gi_data::custom::CombinedDrop;
+use nod_krai_gi_data::custom::{CombinedDrop, GadgetMapping};
 use nod_krai_gi_data::quest::quest_config::load_quest_configs_from_bin;
 use nod_krai_gi_data::scene::scene_point_config::load_scene_point_configs_from_bin;
-use nod_krai_gi_data::scene::script_cache::{init_scene_static_templates, load_lua_vm};
+use nod_krai_gi_data::scene::script_cache::{
+     init_scene_static_templates, load_lua_vm,
+};
 use nod_krai_gi_data::{
     config::load_avatar_configs_from_bin, config::load_gadget_configs_from_bin, custom, excel,
     GAME_SERVER_CONFIG, REGION_LIST,
@@ -105,6 +107,7 @@ async fn main() -> Result<()> {
     excel::load_all("assets/ExcelBinOutput")?;
     custom::load_all("assets/custom")?;
     CombinedDrop::load("assets/custom");
+    GadgetMapping::load("assets/custom");
 
     loop {
         if MULTI_VERSION_PROTOCOL.get().unwrap().is_empty() {
@@ -118,12 +121,12 @@ async fn main() -> Result<()> {
     let (db_handle, save_data_tx) = db_worker::start(db_connection);
 
     let region_list: Vec<RegionConfig> =
-        serde_json::from_str(&fs::read_to_string(&GAME_SERVER_CONFIG.region_list_path)?)?;
+        serde_json::from_str(&common::string_util::read_utf8_no_bom(&GAME_SERVER_CONFIG.region_list_path)?)?;
 
     let _ = REGION_LIST.set(region_list.clone());
 
     let key_pair_map = serde_json::from_str::<HashMap<u32, EncryptionConfig>>(
-        &fs::read_to_string(&GAME_SERVER_CONFIG.encryption_config_path)?,
+        &common::string_util::read_utf8_no_bom(&GAME_SERVER_CONFIG.encryption_config_path)?,
     )?
     .into_iter()
     .map(|(id, conf)| (id, RsaKeyPair::from_encryption_config(&conf)))

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use bevy_ecs::prelude::*;
-use nod_krai_gi_data::excel;
 use nod_krai_gi_entity::avatar::CurrentTeam;
 use nod_krai_gi_entity::{
     avatar::{AvatarQueryReadOnly, CurrentPlayerAvatarMarker, IndexInSceneTeam},
@@ -19,6 +18,7 @@ use nod_krai_gi_proto::normal::{
     FightPropPair, MotionInfo, ProtEntityType, SceneAvatarInfo, SceneEntityInfo, SceneTeamAvatar,
     SceneTeamUpdateNotify, SceneWeaponInfo, Vector,
 };
+use nod_krai_gi_proto::server_only::MotionState;
 
 pub fn notify_scene_team_update(
     mut scene_team_update_events: MessageReader<SceneTeamUpdateEvent>,
@@ -34,9 +34,6 @@ pub fn notify_scene_team_update(
     players: Res<Players>,
     message_output: Res<MessageOutput>,
 ) {
-    let avatar_skill_depot_excel_config_collection_clone =
-        std::sync::Arc::clone(excel::avatar_skill_depot_excel_config_collection::get());
-
     for _ in scene_team_update_events.read() {
         message_output.send_to_all(
             "SceneTeamUpdateNotify",
@@ -45,22 +42,11 @@ pub fn notify_scene_team_update(
                     .iter()
                     .sort::<&IndexInSceneTeam>()
                     .filter_map(|(avatar_data, _, is_cur)| {
-                        let Ok(weapon_data) = weapon_query.get(avatar_data.equipment_weapon.weapon) else {
+                        let Ok(weapon_data) = weapon_query.get(avatar_data.equipment_weapon.weapon)
+                        else {
                             tracing::debug!(
                                 "weapon data {} doesn't exist",
                                 avatar_data.equipment_weapon.weapon
-                            );
-                            return None;
-                        };
-
-                        let Some(skill_depot_data) =
-                            avatar_skill_depot_excel_config_collection_clone
-                                .get(&avatar_data.skill_depot.0)
-                                .cloned()
-                        else {
-                            tracing::debug!(
-                                "avatar skill depot config {} doesn't exist",
-                                avatar_data.skill_depot.0
                             );
                             return None;
                         };
@@ -71,10 +57,14 @@ pub fn notify_scene_team_update(
                         let Some(ref player_avatar_bin) = player_info.avatar_bin else {
                             return None;
                         };
+
                         let Some(ref player_scene_bin) = player_info.scene_bin else {
                             return None;
                         };
-                        let Some(avatar_bin) = player_avatar_bin.avatar_map.get(&avatar_data.guid.0) else {
+
+                        let Some(avatar_bin) =
+                            player_avatar_bin.avatar_map.get(&avatar_data.guid.0)
+                        else {
                             tracing::debug!("avatar guid {} doesn't exist", avatar_data.guid.0);
                             return None;
                         };
@@ -97,11 +87,21 @@ pub fn notify_scene_team_update(
                             scene_entity_info: Some(SceneEntityInfo {
                                 entity_type: ProtEntityType::ProtEntityAvatar.into(),
                                 entity_id: avatar_data.entity_id.0,
-                                name: String::with_capacity(0),
                                 motion_info: Some(MotionInfo {
-                                    pos: Some(player_scene_bin.my_cur_scene_pos.unwrap_or_default().into()),
-                                    rot: Some(player_scene_bin.my_cur_scene_rot.unwrap_or_default().into()),
+                                    pos: Some(
+                                        player_scene_bin
+                                            .my_cur_scene_pos
+                                            .unwrap_or_default()
+                                            .into(),
+                                    ),
+                                    rot: Some(
+                                        player_scene_bin
+                                            .my_cur_scene_rot
+                                            .unwrap_or_default()
+                                            .into(),
+                                    ),
                                     speed: Some(Vector::default()),
+                                    state: MotionState::MotionStandby as i32,
                                     ..Default::default()
                                 }),
                                 prop_list: vec![
@@ -125,17 +125,19 @@ pub fn notify_scene_team_update(
                                 last_move_scene_time_ms: 0,
                                 last_move_reliable_seq: 0,
                                 entity_client_data: Some(EntityClientData::default()),
-                                entity_environment_info_list: Vec::with_capacity(0),
                                 entity_authority_info: Some(EntityAuthorityInfo {
                                     ability_info: Some(AbilitySyncStateInfo::default()),
-                                    born_pos: Some(Vector::default()),
+                                    born_pos: Some(
+                                        player_scene_bin
+                                            .my_cur_scene_pos
+                                            .unwrap_or_default()
+                                            .into(),
+                                    ),
                                     client_extra_info: Some(EntityClientExtraInfo {
                                         skill_anchor_position: Some(Vector::default()),
                                     }),
                                     ..Default::default()
                                 }),
-                                tag_list: Vec::with_capacity(0),
-                                server_buff_list: Vec::with_capacity(0),
                                 entity: Some(scene_entity_info::Entity::Avatar(SceneAvatarInfo {
                                     uid: avatar_data.owner_player_uid.0,
                                     avatar_id: avatar_data.avatar_id.0,
@@ -147,15 +149,7 @@ pub fn notify_scene_team_update(
                                         .map(|(_, item)| item.item_id)
                                         .collect(),
                                     skill_depot_id: avatar_data.skill_depot.0,
-                                    talent_id_list: if avatar_data.core_proud_skill_level.0 as usize
-                                        > skill_depot_data.talents.len()
-                                    {
-                                        skill_depot_data.talents
-                                    } else {
-                                        skill_depot_data.talents
-                                            [0..avatar_data.core_proud_skill_level.0 as usize]
-                                            .to_vec()
-                                    },
+                                    talent_id_list: avatar_data.talent_id_list.0.clone(),
                                     core_proud_skill_level: avatar_data.core_proud_skill_level.0,
                                     weapon: Some(SceneWeaponInfo {
                                         guid: weapon_data.guid.0,

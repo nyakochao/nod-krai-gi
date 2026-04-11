@@ -4,8 +4,14 @@ use bevy_ecs::prelude::*;
 use common::{
     EntityById, EntityCounter, FightProperties, LifeState, ProtocolEntityID, ToBeRemovedMarker,
 };
+use nod_krai_gi_data::custom::{resolve_drop, CombinedDrop};
 use nod_krai_gi_data::prop_type::FightPropType;
+use nod_krai_gi_data::scene::{EventType, LuaEvt};
 use nod_krai_gi_event::entity::GadgetInteractEvent;
+use nod_krai_gi_event::entity::SetWorktopOptionsEvent;
+use nod_krai_gi_event::inventory::ItemDropEvent;
+use nod_krai_gi_event::lua::{LuaTriggerEvent, MonsterKillEvent};
+use nod_krai_gi_event::scene::{WorldOwnerUID, WorldVersionConfig};
 use nod_krai_gi_message::event::ClientMessageEvent;
 use nod_krai_gi_message::output::MessageOutput;
 use std::collections::HashMap;
@@ -25,11 +31,16 @@ pub mod util;
 pub mod weapon;
 
 use crate::avatar::CurrentPlayerAvatarMarker;
-use crate::common::Visible;
+use crate::common::{ChestDropId, ConfigId, DropTag, GroupId, Level, Visible};
 use crate::fight::EntityFightPropChangeReasonNotifyEvent;
+use crate::gadget::GadgetID;
+use crate::monster::MonsterID;
+use crate::transform::Transform;
+use nod_krai_gi_data::scene::group_entity_state_cache::get_group_entity_state_cache;
 use nod_krai_gi_proto::normal::{
     GadgetInteractReq, GadgetInteractRsp, LifeStateChangeNotify, ProtEntityType,
-    SceneEntityDisappearNotify, SceneEntityDrownReq, VisionType,
+    SceneEntityDisappearNotify, SceneEntityDrownReq, SelectWorktopOptionReq,
+    SelectWorktopOptionRsp, VisionType,
 };
 
 #[derive(SystemSet, Debug, Hash, PartialEq, Eq, Clone)]
@@ -49,6 +60,7 @@ impl Plugin for EntityPlugin {
             .add_message::<AvatarEquipChangeEvent>()
             .add_message::<AvatarAppearanceChangeEvent>()
             .add_message::<EntityFightPropChangeReasonNotifyEvent>()
+            .add_message::<SetWorktopOptionsEvent>()
             .add_systems(
                 PreUpdate,
                 update_entity_index.in_set(EntitySystemSet::HandleEntityIndexUpdate),
@@ -60,6 +72,8 @@ impl Plugin for EntityPlugin {
             )
             .add_systems(Update, update_separate_property_entity)
             .add_systems(Update, gadget::handle_gadget_interact)
+            .add_systems(Update, gadget::handle_set_worktop_options)
+            .add_systems(Update, gadget::handle_gadget_state_change)
             .add_systems(Update, avatar::update_avatar_appearance)
             .add_systems(
                 PostUpdate,
@@ -116,20 +130,128 @@ fn update_separate_property_entity(
 fn update_entity_life_state(
     mut commands: Commands,
     mut entities: Query<
-        (Entity, &ProtocolEntityID, &FightProperties, &mut LifeState),
+        (
+            Entity,
+            &ProtocolEntityID,
+            &FightProperties,
+            &mut LifeState,
+            &Level,
+            &Transform,
+            Option<&MonsterID>,
+            Option<&GadgetID>,
+            Option<&DropTag>,
+            Option<&ChestDropId>,
+            Option<&GroupId>,
+            Option<&ConfigId>,
+        ),
         Changed<FightProperties>,
     >,
+    mut item_drop_events: MessageWriter<ItemDropEvent>,
     mut disappear_events: MessageWriter<EntityDisappearEvent>,
+    mut lua_trigger_events: MessageWriter<LuaTriggerEvent>,
+    mut monster_kill_events: MessageWriter<MonsterKillEvent>,
     message_output: Res<MessageOutput>,
+    world_owner_uid: Res<WorldOwnerUID>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
-    for (entity, id, fight_props, mut life_state) in entities.iter_mut() {
-        if fight_props.get_property(FightPropType::FIGHT_PROP_CUR_HP) <= 0.0 {
-            if id.entity_type() == ProtEntityType::ProtEntityAvatar {
+    let gather_excel_config_collection_clone =
+        std::sync::Arc::clone(nod_krai_gi_data::excel::gather_excel_config_collection::get());
+
+    let cache = get_group_entity_state_cache();
+
+    for (
+        entity,
+        id,
+        fight_props,
+        mut life_state,
+        level,
+        transform,
+        monster_id,
+        gadget_id,
+        drop_tag,
+        chest_drop_id,
+        group_id,
+        config_id,
+    ) in entities.iter_mut()
+    {
+        let cur_hp = fight_props.get_property(FightPropType::FIGHT_PROP_CUR_HP);
+        let max_hp = fight_props.get_property(FightPropType::FIGHT_PROP_MAX_HP);
+
+        if cur_hp <= 0.0 {
+            if id.entity_type(world_version_config.protocol_version.as_str())
+                == ProtEntityType::ProtEntityAvatar
+            {
                 commands
                     .entity(entity)
                     .remove::<CurrentPlayerAvatarMarker>()
                     .remove::<Visible>();
             } else {
+                match gadget_id {
+                    None => {}
+                    Some(gadget_id) => {
+                        match gather_excel_config_collection_clone
+                            .iter()
+                            .find(|(_, gather_config)| gather_config.gadget_id == gadget_id.0)
+                        {
+                            None => {}
+                            Some((_, gather_config)) => {
+                                item_drop_events.write(ItemDropEvent(
+                                    0,
+                                    Some((
+                                        transform.position.x,
+                                        transform.position.y + 0.5,
+                                        transform.position.z,
+                                    )),
+                                    vec![(gather_config.item_id, 1)],
+                                ));
+                            }
+                        }
+                    }
+                }
+
+                let mut drop_id = 0;
+
+                match drop_tag {
+                    None => {}
+                    Some(drop_tag) => match &drop_tag.0 {
+                        None => {}
+                        Some(drop_tag) => {
+                            match CombinedDrop::get_drop_config(drop_tag.clone(), level.0) {
+                                None => {}
+                                Some(drop_config) => {
+                                    drop_id = drop_config.drop_id;
+                                }
+                            }
+                        }
+                    },
+                }
+
+                if drop_id == 0 {
+                    match chest_drop_id {
+                        None => {}
+                        Some(chest_drop_id) => {
+                            drop_id = chest_drop_id.0;
+                        }
+                    }
+                }
+
+                if drop_id != 0 {
+                    tracing::debug!("drop_id is {}", drop_id);
+                    let drop_vec = resolve_drop(drop_id, 1);
+                    tracing::debug!("drop_vec is {:#?}", drop_vec);
+                    if !drop_vec.is_empty() {
+                        item_drop_events.write(ItemDropEvent(
+                            0,
+                            Some((
+                                transform.position.x,
+                                transform.position.y + 0.5,
+                                transform.position.z,
+                            )),
+                            drop_vec,
+                        ));
+                    }
+                }
+
                 commands.entity(entity).insert(ToBeRemovedMarker);
             }
             disappear_events.write(EntityDisappearEvent(id.0, VisionType::VisionDie));
@@ -156,6 +278,62 @@ fn update_entity_life_state(
                 )
             }
             *life_state = LifeState::Alive;
+        }
+
+        if let (Some(group_id), Some(config_id)) = (group_id, config_id) {
+            if monster_id.is_some() {
+                cache.on_monster_life_state_update(
+                    world_owner_uid.0,
+                    group_id.0,
+                    config_id.0,
+                    *life_state as u32,
+                    cur_hp,
+                    max_hp,
+                );
+
+                if cur_hp <= 0.0 {
+                    lua_trigger_events.write(LuaTriggerEvent {
+                        group_id: group_id.0,
+                        event_type: EventType::EventAnyMonsterDie,
+                        evt: LuaEvt {
+                            param1: config_id.0,
+                            param2: 0,
+                            param3: 0,
+                            source_eid: id.0,
+                            target_eid: id.0,
+                        },
+                    });
+
+                    monster_kill_events.write(MonsterKillEvent {
+                        group_id: group_id.0,
+                        config_id: config_id.0,
+                        monster_id: monster_id.map(|m| m.0).unwrap_or(0),
+                    });
+                }
+            } else if gadget_id.is_some() {
+                cache.on_gadget_life_state_update(
+                    world_owner_uid.0,
+                    group_id.0,
+                    config_id.0,
+                    *life_state as u32,
+                    cur_hp,
+                    max_hp,
+                );
+
+                if cur_hp <= 0.0 {
+                    lua_trigger_events.write(LuaTriggerEvent {
+                        group_id: group_id.0,
+                        event_type: EventType::EventAnyGadgetDie,
+                        evt: LuaEvt {
+                            param1: config_id.0,
+                            param2: 0,
+                            param3: 0,
+                            source_eid: id.0,
+                            target_eid: id.0,
+                        },
+                    });
+                }
+            }
         }
     }
 }
@@ -206,8 +384,10 @@ pub fn handle_entity(
     index: Res<EntityById>,
     mut events: MessageReader<ClientMessageEvent>,
     message_output: Res<MessageOutput>,
+    entities: Query<(&ProtocolEntityID, Option<&GroupId>, Option<&ConfigId>)>,
     mut gadget_interact_events: MessageWriter<GadgetInteractEvent>,
     mut update_separate_property_entity_events: MessageWriter<EntityPropertySeparateUpdateEvent>,
+    mut lua_trigger_events: MessageWriter<LuaTriggerEvent>,
 ) {
     for message in events.read() {
         match message.message_name() {
@@ -245,6 +425,42 @@ pub fn handle_entity(
                                 ),
                             );
                         }
+                    }
+                }
+            }
+            "SelectWorktopOptionReq" => {
+                if let Some(req) = message.decode::<SelectWorktopOptionReq>() {
+                    match index.0.get(&req.gadget_entity_id) {
+                        None => {}
+                        Some(entity) => match entities.get(*entity) {
+                            Ok((_, group_id, config_id)) => {
+                                let Some(group_id) = group_id else { continue };
+                                let Some(config_id) = config_id else { continue };
+
+                                lua_trigger_events.write(LuaTriggerEvent {
+                                    group_id: group_id.0,
+                                    event_type: EventType::EventSelectOption,
+                                    evt: LuaEvt {
+                                        param1: config_id.0,
+                                        param2: req.option_id,
+                                        param3: 0,
+                                        source_eid: req.gadget_entity_id,
+                                        target_eid: req.gadget_entity_id,
+                                    },
+                                });
+
+                                message_output.send(
+                                    message.sender_uid(),
+                                    "SelectWorktopOptionRsp",
+                                    SelectWorktopOptionRsp {
+                                        gadget_entity_id: req.gadget_entity_id,
+                                        option_id: req.option_id,
+                                        ..Default::default()
+                                    },
+                                );
+                            }
+                            Err(_) => {}
+                        },
                     }
                 }
             }

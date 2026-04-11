@@ -5,7 +5,6 @@ use nod_krai_gi_data::scene::scene_group_template::SceneGroupTemplate;
 use nod_krai_gi_data::scene::script_cache::{load_scene_group_from_cache, scene_group_is_bad};
 use nod_krai_gi_data::scene::{EventType, LuaContext};
 use std::collections::HashMap;
-use std::fs;
 
 pub struct CompiledTrigger {
     pub name: String,
@@ -26,6 +25,7 @@ pub struct SceneGroupRuntime {
     pub triggers_by_event: HashMap<EventType, Vec<CompiledTrigger>>,
     pub active_suites: Vec<u32>,
     pub active_trigger_names: Vec<String>,
+    pub variables: HashMap<String, i32>,
 }
 
 impl SceneGroupRuntime {
@@ -39,87 +39,72 @@ impl SceneGroupRuntime {
             return None;
         }
 
-        let path = format!(
-            "./assets/lua/scene/{}/scene{}_group{}.lua",
-            scene_id, scene_id, group_id
-        );
+        let lua = &lua_vm.lua;
+        let globals = lua.globals();
 
-        let Ok(code) = fs::read_to_string(&path) else {
-            println!("load_scene_group failed read scene {}", path);
-            return None;
-        };
+        let script_name = format!("scene{}_group{}", scene_id, group_id);
+        let script_path = format!("./assets/lua/scene/{}/{}.lua", scene_id, script_name);
 
+        let code = common::string_util::read_utf8_no_bom(&script_path).ok()?;
         let code = code.replace("ScriptLib.", "ScriptLib:");
 
-        if let Err(err) = lua_vm
-            .lua
-            .load(&code)
-            .set_name(&format!("scene{}_group{}", scene_id, group_id))
-            .exec()
-        {
-            tracing::debug!("SceneGroupRuntime failed lua load {}: {}", path, err);
-            return None;
-        }
+        let env = lua.create_table().ok()?;
+        let mt = lua.create_table().ok()?;
+        mt.set("__index", globals.clone()).ok()?;
+        env.set_metatable(Some(mt)).ok()?;
 
-        let Some(data) = load_scene_group_from_cache(&lua_vm.lua, scene_id, block_id, group_id)
-        else {
-            tracing::debug!(
-                "SceneGroupRuntime load_scene_group_from_cache {} fail",
-                group_id
-            );
-            return None;
-        };
+        let chunk = lua.load(&code).set_name(&script_name);
+        chunk.set_environment(env.clone()).exec().ok()?;
+
+        globals.set(script_name.clone(), env.clone()).ok()?;
+
+        let data = load_scene_group_from_cache(lua, scene_id, block_id, group_id)?;
 
         if data.triggers.is_empty() {
-            let rt = Self {
+            let variables = data
+                .variables
+                .iter()
+                .map(|v| (v.name.clone(), v.value))
+                .collect();
+
+            return Some(Self {
                 data,
                 context: LuaContext {
                     scene_id,
                     group_id,
+                    config_id: 0,
+                    source_entity_id: 0,
+                    target_entity_id: 0,
                     uid: 1234,
                 },
                 triggers_by_event: HashMap::new(),
                 active_suites: vec![1],
                 active_trigger_names: Vec::new(),
-            };
-            return Some(rt);
-        };
+                variables,
+            });
+        }
 
         let mut triggers_by_event: HashMap<EventType, Vec<CompiledTrigger>> = HashMap::new();
 
-        let globals = lua_vm.lua.globals();
-
         for trig in &data.triggers {
-            let cond = if !trig.condition.is_empty() {
-                globals.get::<Function>(trig.condition.as_str()).ok()
-            } else {
-                None
-            };
+            let cond = (!trig.condition.is_empty())
+                .then_some(trig.condition.as_str())
+                .and_then(|name| env.get::<Function>(name).ok());
 
-            let action = if !trig.action.is_empty() {
-                globals.get::<Function>(trig.action.as_str()).ok()
-            } else {
-                None
-            };
+            let action = (!trig.action.is_empty())
+                .then_some(trig.action.as_str())
+                .and_then(|name| env.get::<Function>(name).ok());
 
-            if action.is_none() {
-                continue;
+            if let Some(action) = action {
+                triggers_by_event
+                    .entry(trig.event.clone())
+                    .or_default()
+                    .push(CompiledTrigger {
+                        name: trig.name.clone(),
+                        condition: cond,
+                        action: Some(action),
+                    });
             }
-
-            tracing::debug!(
-                "event {:#?} trig {} ",
-                trig.event.clone(),
-                trig.name.clone()
-            );
-
-            triggers_by_event
-                .entry(trig.event.clone())
-                .or_default()
-                .push(CompiledTrigger {
-                    name: trig.name.clone(),
-                    condition: cond,
-                    action,
-                });
         }
 
         if triggers_by_event.is_empty() {
@@ -127,16 +112,26 @@ impl SceneGroupRuntime {
             return None;
         }
 
+        let variables = data
+            .variables
+            .iter()
+            .map(|v| (v.name.clone(), v.value))
+            .collect();
+
         let mut rt = Self {
             data,
             context: LuaContext {
                 scene_id,
                 group_id,
+                config_id: 0,
+                source_entity_id: 0,
+                target_entity_id: 0,
                 uid: 1234,
             },
             triggers_by_event,
             active_suites: vec![1],
             active_trigger_names: Vec::new(),
+            variables,
         };
 
         rt.recompute_active_triggers();

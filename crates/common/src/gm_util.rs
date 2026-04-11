@@ -88,6 +88,7 @@ pub enum Command {
     Quest(QuestAction),
     Item(ItemAction),
     Gacha(GachaAction),
+    SendPacket(String),
     Prop(String, String),
     Dun(Option<u32>),
     Pos,
@@ -144,7 +145,6 @@ pub enum ItemAction {
     },
     Drop {
         id: u32,
-        pos: Option<(f32, f32, f32)>,
     },
 }
 
@@ -169,6 +169,11 @@ pub fn parse_command(input: &str) -> Result<Command, String> {
             let k = parts.next().ok_or("prop <key> <value>")?.to_string();
             let v = parts.next().ok_or("prop <key> <value>")?.to_string();
             return Ok(Command::Prop(k, v));
+        }
+
+        "send_packet" => {//send_packet cmd_id_list
+            let k = parts.next().ok_or("send_packet <key>")?.to_string();
+            return Ok(Command::SendPacket(k));
         }
 
         "dun" => {
@@ -263,7 +268,6 @@ pub fn parse_command(input: &str) -> Result<Command, String> {
         ("item", "drop") => parse_struct(parts, "item drop <id>", |mut map| {
             Ok(Command::Item(ItemAction::Drop {
                 id: map.take("id")?,
-                pos: None,
             }))
         }),
 

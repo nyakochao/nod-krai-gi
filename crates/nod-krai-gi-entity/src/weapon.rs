@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use bevy_ecs::{prelude::*, query::QueryData};
 
+use crate::gadget::GadgetID;
+
 use super::common::*;
 
 #[derive(Component)]

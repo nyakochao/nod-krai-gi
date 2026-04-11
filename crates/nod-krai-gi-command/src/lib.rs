@@ -33,6 +33,7 @@ pub fn debug_command_handler(
     mut entity_counter: ResMut<EntityCounter>,
     players: Res<Players>,
     mut jump_events: MessageWriter<ScenePlayerJumpEvent>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for command in events.read() {
         debug!(
@@ -56,6 +57,7 @@ pub fn debug_command_handler(
                 });
 
                 let Some(monster_entity) = spawn_monster_entity(
+                    world_version_config.protocol_version.clone(),
                     &mut commands,
                     &mut entity_counter,
                     {
@@ -72,10 +74,12 @@ pub fn debug_command_handler(
                     90,
                     0,
                     0,
+                    None,
+                    0,
                 ) else {
                     continue;
                 };
-                commands.entity(monster_entity).insert(Visible);
+                commands.entity(monster_entity.1).insert(Visible);
             }
             CommandKind::QuickSpawnGadget {
                 gadget_id,
@@ -88,6 +92,7 @@ pub fn debug_command_handler(
                 });
 
                 let Some(gadget_entity) = spawn_gadget_entity(
+                    world_version_config.protocol_version.clone(),
                     &mut commands,
                     &mut entity_counter,
                     {
@@ -111,7 +116,7 @@ pub fn debug_command_handler(
                     continue;
                 };
 
-                commands.entity(gadget_entity).insert(Visible);
+                commands.entity(gadget_entity.1).insert(Visible);
             }
             CommandKind::QuickTravel { scene_id, position } => match scene_id {
                 None => {}
@@ -136,6 +141,7 @@ pub fn gm_command_handler(
     mut tp_events: MessageWriter<ScenePlayerJumpEvent>,
     mut quest_events: MessageWriter<CommandQuestEvent>,
     mut item_events: MessageWriter<CommandItemEvent>,
+    message_output: Res<MessageOutput>,
 ) {
     for ConsoleChatReqEvent(player_uid, console_content) in events.read() {
         let Some(player_info) = players.get_mut(*player_uid) else {
@@ -208,6 +214,42 @@ pub fn gm_command_handler(
                     Command::Prop(_, _) => {}
                     Command::Dun(_) => {}
                     Command::Pos => {}
+                    Command::SendPacket(key) => match key.as_str() {
+                        "cmd_id_list" => {
+                            match common::string_util::read_utf8_no_bom(
+                                "./assets/custom/test_packet.json",
+                            ) {
+                                Ok(content) => match serde_json::from_str(&*content) {
+                                    Ok(value) => {
+                                        let value: serde_json::Value = value;
+                                        match value.get("cmd_id_list") {
+                                            None => {}
+                                            Some(cmd_id_list) => match cmd_id_list.as_array() {
+                                                None => {}
+                                                Some(cmd_id_list) => {
+                                                    for cmd_id in cmd_id_list {
+                                                        match cmd_id.as_u64() {
+                                                            None => {}
+                                                            Some(cmd_id) => {
+                                                                message_output
+                                                                    .send_none_with_cmd_id(
+                                                                        *player_uid,
+                                                                        cmd_id as u16,
+                                                                    );
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            },
+                                        }
+                                    }
+                                    Err(_) => {}
+                                },
+                                Err(_) => {}
+                            }
+                        }
+                        _ => {}
+                    },
                 }
             }
             Err(error) => {

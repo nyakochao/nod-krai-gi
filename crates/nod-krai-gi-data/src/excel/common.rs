@@ -85,6 +85,31 @@ macro_rules! lua_enum {
 }
 
 lua_enum! {
+    pub enum ElementType {
+        alias("None")
+        None= 0,
+        alias("Fire")
+        Fire= 1,
+        alias("Water")
+        Water= 2,
+        alias("Grass")
+        Grass= 3,
+        alias("Electric")
+        Electric= 4,
+        alias("Ice")
+        Ice= 5,
+        alias("Frozen")
+        Frozen= 6,
+        alias("Wind")
+        Wind= 7,
+        alias("Rock")
+        Rock=8,
+        alias("AntiFire")
+        AntiFire= 9,
+    }
+}
+
+lua_enum! {
     pub enum EntityType {
         alias("NONE")
         None = 0,

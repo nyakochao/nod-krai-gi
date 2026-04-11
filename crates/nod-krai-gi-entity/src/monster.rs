@@ -2,6 +2,7 @@ use crate::util::{create_fight_properties_by_monster_config, to_protocol_entity_
 use crate::{common::*, int_prop_pair, transform::Transform};
 use bevy_ecs::{prelude::*, query::QueryData};
 use nod_krai_gi_data::excel::monster_excel_config_collection;
+use nod_krai_gi_data::prop_type::FightPropType;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_proto::normal::ProtEntityType;
 use nod_krai_gi_proto::server_only::VectorBin;
@@ -23,6 +24,8 @@ pub struct MonsterBundle {
     pub level: Level,
     pub title_id: TitleId,
     pub special_name_id: SpecialNameId,
+    pub drop_tag: DropTag,
+    pub chest_drop_id: ChestDropId,
     pub transform: Transform,
     pub fight_properties: FightProperties,
     pub instanced_abilities: InstancedAbilities,
@@ -38,6 +41,8 @@ pub struct MonsterQueryReadOnly {
     pub level: &'static Level,
     pub title_id: &'static TitleId,
     pub special_name_id: &'static SpecialNameId,
+    pub drop_tag: &'static DropTag,
+    pub chest_drop_id: &'static ChestDropId,
     pub transform: &'static Transform,
     pub fight_properties: &'static FightProperties,
     pub instanced_abilities: &'static InstancedAbilities,
@@ -133,6 +138,7 @@ pub fn run_if_monster_entities_appeared(
 }
 
 pub fn spawn_monster_entity(
+    protocol_version: String,
     commands: &mut Commands,
     entity_counter: &mut ResMut<EntityCounter>,
     position: VectorBin,
@@ -141,7 +147,9 @@ pub fn spawn_monster_entity(
     level: u32,
     title_id: u32,
     special_name_id: u32,
-) -> Option<Entity> {
+    drop_tag: Option<String>,
+    chest_drop_id: u32,
+) -> Option<(u32, Entity, f32, f32)> {
     let monster_excel_config_collection_clone =
         std::sync::Arc::clone(monster_excel_config_collection::get());
 
@@ -156,6 +164,9 @@ pub fn spawn_monster_entity(
     }
     fight_properties.apply_base_values();
 
+    let cur_hp = fight_properties.get_property(FightPropType::FIGHT_PROP_CUR_HP);
+    let max_hp = fight_properties.get_property(FightPropType::FIGHT_PROP_MAX_HP);
+
     let mut title_id = title_id;
     let mut special_name_id = special_name_id;
     if title_id == 0 && special_name_id == 0 {
@@ -168,12 +179,21 @@ pub fn spawn_monster_entity(
         }
     }
 
+    let protocol_entity_id = to_protocol_entity_id(
+        protocol_version.as_str(),
+        ProtEntityType::ProtEntityMonster,
+        entity_counter.inc(),
+    );
+    let entity_id = protocol_entity_id.0;
+
     let monster_entity = commands.spawn(MonsterBundle {
         monster_id: MonsterID(monster_id),
-        entity_id: to_protocol_entity_id(ProtEntityType::ProtEntityMonster, entity_counter.inc()),
+        entity_id: protocol_entity_id,
         level: Level(level),
         title_id: TitleId(title_id),
         special_name_id: SpecialNameId(special_name_id),
+        drop_tag: DropTag(drop_tag),
+        chest_drop_id: ChestDropId(chest_drop_id),
         transform: Transform { position, rotation },
         fight_properties,
         instanced_abilities: InstancedAbilities::default(),
@@ -182,5 +202,5 @@ pub fn spawn_monster_entity(
         life_state: LifeState::Alive,
     });
 
-    Some(monster_entity.id())
+    Some((entity_id, monster_entity.id(), cur_hp, max_hp))
 }

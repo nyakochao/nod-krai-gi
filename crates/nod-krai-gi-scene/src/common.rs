@@ -5,9 +5,6 @@ use bevy_derive::{Deref, DerefMut};
 use bevy_ecs::prelude::*;
 use rand::Rng;
 
-#[derive(Resource)]
-pub struct WorldOwnerUID(pub u32);
-
 #[derive(Resource, Default, Deref, DerefMut)]
 pub struct PlayerSceneStates(HashMap<u32, PlayerSceneState>);
 

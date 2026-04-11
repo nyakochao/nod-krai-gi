@@ -5,6 +5,7 @@ use crate::actions::ability_action_add_global_value::ability_action_add_global_v
 use crate::actions::ability_action_add_hp_debts::ability_action_add_hp_debts_event;
 use crate::actions::ability_action_clear_global_value::ability_action_clear_global_value_event;
 use crate::actions::ability_action_copy_global_value::ability_action_copy_global_value_event;
+use crate::actions::ability_action_execute_gadget_lua::ability_action_execute_gadget_lua_event;
 use crate::actions::ability_action_get_hp_paid_debts::ability_action_get_hp_paid_debts_event;
 use crate::actions::ability_action_heal_hp::ability_action_heal_hp_event;
 use crate::actions::ability_action_kill_self::ability_action_kill_self_event;
@@ -133,6 +134,10 @@ impl Plugin for AbilityPlugin {
             .add_systems(
                 Update,
                 ability_action_kill_self_event.in_set(AbilitySystemSet::Other),
+            )
+            .add_systems(
+                Update,
+                ability_action_execute_gadget_lua_event.in_set(AbilitySystemSet::Other),
             );
     }
 }

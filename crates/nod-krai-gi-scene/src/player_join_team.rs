@@ -19,6 +19,7 @@ pub fn player_join_team(
     mut entity_counter: ResMut<EntityCounter>,
     mut scene_team_update_events: MessageWriter<SceneTeamUpdateEvent>,
     avatars: Query<(Entity, AvatarQueryReadOnly)>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     let is_empty = events.is_empty();
 
@@ -65,6 +66,7 @@ pub fn player_join_team(
                     };
 
                     let Some((entity, _weapon_entity)) = spawn_avatar_entity(
+                        world_version_config.protocol_version.clone(),
                         &mut commands,
                         &mut entity_counter,
                         avatar_bin,

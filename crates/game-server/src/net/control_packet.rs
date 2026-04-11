@@ -45,18 +45,21 @@ impl ControlPacket {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ControlPacketType {
+    Pre,
     Connect,
     Establish,
     Disconnect,
 }
 
 impl ControlPacketType {
+    const PRE_MAGIC: (u32, u32) = (0x227, 0x22722727);
     const CONNECT_MAGIC: (u32, u32) = (0xFF, 0xFFFFFFFF);
     const ESTABLISH_MAGIC: (u32, u32) = (0x145, 0x14514545);
     const DISCONNECT_MAGIC: (u32, u32) = (0x194, 0x19419494);
 
     pub fn to_magic(self) -> (u32, u32) {
         match self {
+            Self::Pre => Self::PRE_MAGIC,
             Self::Connect => Self::CONNECT_MAGIC,
             Self::Establish => Self::ESTABLISH_MAGIC,
             Self::Disconnect => Self::DISCONNECT_MAGIC,
@@ -65,6 +68,7 @@ impl ControlPacketType {
 
     pub fn from_magic(magic: (u32, u32)) -> Option<ControlPacketType> {
         Some(match magic {
+            Self::PRE_MAGIC => Self::Pre,
             Self::CONNECT_MAGIC => Self::Connect,
             Self::ESTABLISH_MAGIC => Self::Establish,
             Self::DISCONNECT_MAGIC => Self::Disconnect,

@@ -8,7 +8,7 @@ use nod_krai_gi_entity::{
     EntityDisappearEvent, EntityPropertySeparateUpdateEvent,
 };
 use nod_krai_gi_event::scene::*;
-use nod_krai_gi_message::{event::ClientMessageEvent, get_player_version, output::MessageOutput};
+use nod_krai_gi_message::{event::ClientMessageEvent, output::MessageOutput};
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::dy_parser::{
     replace_in_u32, replace_in_u64, replace_out_i32, replace_out_u32, replace_out_u64,
@@ -214,6 +214,7 @@ pub fn set_up_avatar_team(
     out: Res<MessageOutput>,
     mut players: ResMut<Players>,
     mut change_events: MessageWriter<PlayerAvatarTeamChanged>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     for message in client_messages.read() {
         match message.message_name() {
@@ -247,18 +248,15 @@ pub fn set_up_avatar_team(
                         continue;
                     };
 
-                    let version = get_player_version!(&player_info.uid);
-                    let protocol_version = version.as_str();
-
                     let team_id = replace_in_u32(
-                        protocol_version,
+                        world_version_config.protocol_version.as_str(),
                         "SetUpAvatarTeamReq.team_id",
                         request.team_id,
                     );
 
                     if let Some(team) = player_avatar_bin.team_map.get_mut(&team_id) {
                         let mut cur_avatar_guid = replace_in_u64(
-                            protocol_version,
+                            world_version_config.protocol_version.as_str(),
                             "SetUpAvatarTeamReq.cur_avatar_guid",
                             request.cur_avatar_guid,
                         );
@@ -290,17 +288,17 @@ pub fn set_up_avatar_team(
                             "SetUpAvatarTeamRsp",
                             SetUpAvatarTeamRsp {
                                 retcode: replace_out_i32(
-                                    protocol_version,
+                                    world_version_config.protocol_version.as_str(),
                                     "SetUpAvatarTeamRsp.retcode",
                                     Retcode::RetSucc.into(),
                                 ),
                                 team_id: replace_out_u32(
-                                    protocol_version,
+                                    world_version_config.protocol_version.as_str(),
                                     "SetUpAvatarTeamRsp.team_id",
                                     team_id,
                                 ),
                                 cur_avatar_guid: replace_out_u64(
-                                    protocol_version,
+                                    world_version_config.protocol_version.as_str(),
                                     "SetUpAvatarTeamRsp.cur_avatar_guid",
                                     cur_avatar_guid,
                                 ),
@@ -315,7 +313,7 @@ pub fn set_up_avatar_team(
                             "SetUpAvatarTeamRsp",
                             SetUpAvatarTeamRsp {
                                 retcode: replace_out_i32(
-                                    protocol_version,
+                                    world_version_config.protocol_version.as_str(),
                                     "SetUpAvatarTeamRsp.retcode",
                                     Retcode::RetFail.into(),
                                 ),

@@ -1,7 +1,7 @@
 use crate::excel::common::VisionLevelType;
 use crate::scene::scene_block_template::BlockGroup;
 use crate::scene::scene_group_template::SceneGroupTemplate;
-use crate::scene::script_cache::{load_scene_group, SCENE_BLOCK_COLLECTION, SCENE_LUA_VM};
+use crate::scene::script_cache::{load_scene_group_from_cache, SCENE_BLOCK_COLLECTION, SCENE_LUA_VM};
 use dashmap::DashMap;
 use mlua::Lua;
 use rstar::{Envelope, PointDistance, RTree, RTreeObject, AABB};
@@ -28,7 +28,7 @@ pub fn get_or_init_spatial_cache(
     let cache_path = format!("{}/scene_cache_{}.json", cache_root, scene_id);
 
     if Path::new(&cache_path).exists() {
-        let cache_data = fs::read_to_string(&cache_path).ok()?;
+        let cache_data = common::string_util::read_utf8_no_bom(&cache_path).ok()?;
         let cache: GroupSpatialCache = serde_json::from_str(&cache_data).ok()?;
 
         let cache_clone = cache.clone();
@@ -84,7 +84,7 @@ pub fn build_scene_spatial_cache(
                 lua_root, scene_id_key, scene_id_key, group_id
             );
 
-            let Ok(code) = fs::read_to_string(&path) else {
+            let Ok(code) = common::string_util::read_utf8_no_bom(&path) else {
                 failed_groups += 1;
                 println!("Failed to read group {}", group_id);
                 continue;
@@ -100,7 +100,7 @@ pub fn build_scene_spatial_cache(
                 continue;
             }
 
-            if let Some(group) = load_scene_group(&lua, *scene_id_key, *block_id, group_id) {
+            if let Some(group) = load_scene_group_from_cache(&lua, *scene_id_key, *block_id, group_id) {
                 if let Some(info) = GroupSpatialInfo::from_scene_group(&group) {
                     cache.add_group(scene_id, info);
                     processed_groups += 1;

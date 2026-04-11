@@ -2,15 +2,17 @@ use bevy_ecs::prelude::*;
 use nod_krai_gi_data::excel::common::EquipType;
 use nod_krai_gi_data::excel::{avatar_excel_config_collection, weapon_excel_config_collection};
 use nod_krai_gi_entity::avatar::{spawn_avatar_entity, EquipmentWeapon};
+use nod_krai_gi_entity::gadget::GadgetID;
 use nod_krai_gi_entity::{
     avatar::AvatarEquipChangeEvent,
     common::{
-        create_fight_props_with_equip, EntityCounter, GadgetID, Guid, Level, OwnerPlayerUID,
+        create_fight_props_with_equip, EntityCounter, Guid, Level, OwnerPlayerUID,
         ToBeRemovedMarker,
     },
     util::to_protocol_entity_id,
     weapon::{AffixMap, WeaponBundle, WeaponID, WeaponPromoteLevel},
 };
+use nod_krai_gi_event::scene::WorldVersionConfig;
 use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::normal::{
@@ -26,6 +28,7 @@ pub fn apply_equip_change_to_avatar_entity(
     mut entity_counter: ResMut<EntityCounter>,
     players: Res<Players>,
     message_output: Res<MessageOutput>,
+    world_version_config: Res<WorldVersionConfig>,
 ) {
     let avatar_excel_config_collection_clone =
         std::sync::Arc::clone(avatar_excel_config_collection::get());
@@ -61,6 +64,7 @@ pub fn apply_equip_change_to_avatar_entity(
             (entity, equipment_weapon.weapon)
         } else {
             let Some((entity, weapon_entity)) = spawn_avatar_entity(
+                world_version_config.protocol_version.clone(),
                 &mut commands,
                 &mut entity_counter,
                 avatar_bin,
@@ -151,8 +155,11 @@ pub fn apply_equip_change_to_avatar_entity(
 
                 commands.entity(weapon_entity).insert(ToBeRemovedMarker);
 
-                let protocol_entity_id =
-                    to_protocol_entity_id(ProtEntityType::ProtEntityWeapon, entity_counter.inc());
+                let protocol_entity_id = to_protocol_entity_id(
+                    world_version_config.protocol_version.as_str(),
+                    ProtEntityType::ProtEntityWeapon,
+                    entity_counter.inc(),
+                );
 
                 let entity_id = protocol_entity_id.0;
 

@@ -19,6 +19,7 @@ pub struct Monster {
     pub title_id: Option<u32>,
     pub special_name_id: Option<u32>,
     pub drop_tag: Option<String>,
+    pub chest_drop_id: Option<u32>,
     pub disable_wander: Option<bool>,
     pub pose_id: Option<u32>,
     pub area_id: Option<u32>,

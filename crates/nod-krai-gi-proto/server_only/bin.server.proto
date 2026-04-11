@@ -98,7 +98,7 @@ message PlayerBasicCompBin {
   uint32 online_time = 23;
   bool is_proficient_player = 24;
   uint32 set_language_tag = 26;
-  uint32 head_image_avatar_id = 27;
+  uint32 profile_picture_id = 27;
   uint32 guid_seq_id = 28;
   bool is_rebate_mail_sent = 29;
   bool is_rebate_mail_received = 30;
@@ -109,7 +109,7 @@ message PlayerBasicCompBin {
   uint32 data_version = 35;
   fixed32 last_daily_refresh_time = 36;
   bool is_auto_unlock_specific_equip = 37;
-  uint32 profile_picture_costume_id = 38;
+  uint32 profile_frame_id = 38;
   string online_id = 39;
   string psn_id = 40;
   uint32 last_login_platform = 41;

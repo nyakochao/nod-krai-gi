@@ -87,7 +87,9 @@ impl PartialOrd for InternString {
 
 impl Ord for InternString {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        STRING_POOL.resolve(&self.0).cmp(STRING_POOL.resolve(&other.0))
+        STRING_POOL
+            .resolve(&self.0)
+            .cmp(STRING_POOL.resolve(&other.0))
     }
 }
 
@@ -132,6 +134,15 @@ pub fn get_string_hash(s: &str) -> u32 {
 }
 
 pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
+    // --- strip UTF‑8 BOM ---
+    const BOM: [u8; 3] = [0xEF, 0xBB, 0xBF];
+    let input = if input.starts_with(&BOM) {
+        &input[3..]
+    } else {
+        input
+    };
+
+    // --- strip JSON comments (your original code) ---
     let mut out = Vec::with_capacity(input.len());
 
     let mut i = 0;
@@ -144,7 +155,6 @@ pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
     while i < len {
         let c = input[i];
 
-        // line comment
         if in_line_comment {
             if c == b'\n' {
                 in_line_comment = false;
@@ -154,7 +164,6 @@ pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
             continue;
         }
 
-        // block comment
         if in_block_comment {
             if c == b'*' && i + 1 < len && input[i + 1] == b'/' {
                 in_block_comment = false;
@@ -165,10 +174,8 @@ pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
             continue;
         }
 
-        // inside string
         if in_string {
             if c == b'\\' {
-                // escape next char
                 if i + 1 < len {
                     out.push(c);
                     out.push(input[i + 1]);
@@ -183,7 +190,6 @@ pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
             continue;
         }
 
-        // not in string or comment
         if c == b'"' {
             in_string = true;
             out.push(c);
@@ -191,24 +197,33 @@ pub fn strip_json_comments_bytes(input: &[u8]) -> Vec<u8> {
             continue;
         }
 
-        // detect //
         if c == b'/' && i + 1 < len && input[i + 1] == b'/' {
             in_line_comment = true;
             i += 2;
             continue;
         }
 
-        // detect /*
         if c == b'/' && i + 1 < len && input[i + 1] == b'*' {
             in_block_comment = true;
             i += 2;
             continue;
         }
 
-        // normal char
         out.push(c);
         i += 1;
     }
 
     out
+}
+
+pub fn read_utf8_no_bom<P>(path: P) -> std::io::Result<String>
+where
+    P: AsRef<std::path::Path>,
+{
+    let mut s = std::fs::read_to_string(path)?;
+    const BOM: &str = "\u{FEFF}";
+    if s.starts_with(BOM) {
+        s.replace_range(..BOM.len(), "");
+    }
+    Ok(s)
 }

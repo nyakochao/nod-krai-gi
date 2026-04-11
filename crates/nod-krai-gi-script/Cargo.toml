@@ -16,4 +16,6 @@ nod-krai-gi-event.workspace = true
 nod-krai-gi-entity.workspace = true
 nod-krai-gi-data.workspace = true
 nod-krai-gi-scene.workspace = true
+nod-krai-gi-persistence.workspace = true
 nod-krai-gi-proto.workspace = true
+nod-krai-gi-message.workspace = true
