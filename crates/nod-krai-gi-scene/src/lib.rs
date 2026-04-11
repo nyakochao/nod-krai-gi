@@ -207,7 +207,7 @@ fn notify_player_enter_scene(
         let enter_scene_token = player_scene_state.enter_scene_token();
         tracing::debug!("Player enter scene: {:?}", enter_scene_token);
         let mut scene_tag_id_list = vec![];
-        if [3, 5, 6, 7, 11, 101].contains(&event.scene_id) {
+        if [3, 5, 6, 7, 11, 101, 103].contains(&event.scene_id) {
             let scene_tag_entries_clone = Arc::clone(SceneTagConfig::get_scene_tag_entries());
             match scene_tag_entries_clone.get(&event.scene_id) {
                 None => {}

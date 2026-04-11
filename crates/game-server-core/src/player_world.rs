@@ -207,6 +207,6 @@ impl PlayerWorld {
         } else {
             return false;
         };
-        [3, 5, 6, 7, 11, 101].contains(&scene_id)
+        [3, 5, 6, 7, 11, 101, 103].contains(&scene_id)
     }
 }

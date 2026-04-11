@@ -83,29 +83,43 @@ fn data_request_processor(
                 if let Some(request) = message.decode::<GetScenePointReq>() {
                     match scene_point_config_collection_clone.get(&request.scene_id) {
                         None => {}
-                        Some(scene_config) => message_output.send(
-                            message.sender_uid(),
-                            "GetScenePointRsp",
-                            GetScenePointRsp {
-                                retcode: 0,
-                                is_relogin: request.is_relogin,
-                                belong_uid: request.belong_uid,
-                                scene_id: request.scene_id,
-                                unlock_area_list: (1..=9).collect(),
-                                unlocked_point_list: scene_config.points.keys().cloned().collect(),
-                                unhide_point_list: scene_config.points.keys().cloned().collect(),
-                                // group_unlimit_point_list: scene_config
-                                //     .points
-                                //     .iter()
-                                //     .filter(|(_point_id, point_data)| {
-                                //         point_data.r#point_type == "DungeonEntry"
-                                //             && point_data.group_limit
-                                //     })
-                                //     .map(|(point_id, _point_data)| *point_id)
-                                //     .collect(),
-                                ..Default::default()
-                            },
-                        ),
+                        Some(scene_config) => {
+                            let unlock_area_list: Vec<u32> = scene_config
+                                .points
+                                .values()
+                                .map(|point_data| point_data.area_id)
+                                .collect();
+                            message_output.send(
+                                message.sender_uid(),
+                                "GetScenePointRsp",
+                                GetScenePointRsp {
+                                    is_relogin: request.is_relogin,
+                                    belong_uid: request.belong_uid,
+                                    scene_id: request.scene_id,
+                                    unlock_area_list,
+                                    unlocked_point_list: scene_config
+                                        .points
+                                        .keys()
+                                        .cloned()
+                                        .collect(),
+                                    unhide_point_list: scene_config
+                                        .points
+                                        .keys()
+                                        .cloned()
+                                        .collect(),
+                                    // group_unlimit_point_list: scene_config
+                                    //     .points
+                                    //     .iter()
+                                    //     .filter(|(_point_id, point_data)| {
+                                    //         point_data.r#point_type == "DungeonEntry"
+                                    //             && point_data.group_limit
+                                    //     })
+                                    //     .map(|(point_id, _point_data)| *point_id)
+                                    //     .collect(),
+                                    ..Default::default()
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -170,56 +184,75 @@ pub fn sync_scene_info_list_on_scene_init(
 
     let mut info_list: Vec<PlayerWorldSceneInfo> = vec![];
 
-    [3, 5, 6, 7, 11, 101].iter().for_each(|scene_id| match scene_tag_entries_clone.get(scene_id) {
-        None => {}
-        Some(scene_tag_list) => {
-            let mut scene_tag_id_list: Vec<u32> = vec![];
-            scene_tag_list.iter().for_each(|item| {
-                scene_tag_id_list.push(item.id);
-            });
-            if *scene_id == 3 {
-                info_list.push(PlayerWorldSceneInfo {
-                    is_locked: false,
-                    scene_id: 3,
-                    map_layer_info: Some(MapLayerInfo {
-                        unlocked_map_layer_floor_id_list: Arc::clone(
-                            BIG_WORLD_MAP_LAYER_FLOOR_CONFIG.get().unwrap(),
-                        )
-                        .to_vec(),
-                        unlocked_map_layer_group_id_list: Arc::clone(
-                            BIG_WORLD_MAP_LAYER_GROUP_CONFIG.get().unwrap(),
-                        )
-                        .to_vec(),
-                        unlocked_map_layer_id_list: Arc::clone(
-                            BIG_WORLD_MAP_LAYER_CONFIG.get().unwrap(),
-                        )
-                        .to_vec(),
-                    }),
-                    scene_tag_id_list,
+    [3, 5, 6, 7, 11, 101, 103].iter().for_each(|scene_id| {
+        match scene_tag_entries_clone.get(scene_id) {
+            None => {}
+            Some(scene_tag_list) => {
+                let mut scene_tag_id_list: Vec<u32> = vec![];
+                scene_tag_list.iter().for_each(|item| {
+                    scene_tag_id_list.push(item.id);
                 });
-            } else if *scene_id == 101 {
-                info_list.push(PlayerWorldSceneInfo {
-                    is_locked: false,
-                    scene_id: 101,
-                    map_layer_info: Some(MapLayerInfo {
-                        unlocked_map_layer_id_list: vec![
-                            1018000101, 1018000102, 1018000103, 1018000106, 1018000107, 1018000108,
-                            1018000109, 1018000110, 1018000111, 1018000112,
-                        ],
-                        unlocked_map_layer_group_id_list: vec![10180001],
-                        unlocked_map_layer_floor_id_list: vec![
-                            1018000101, 1018000102, 1018000110, 1018000111, 1018000112,
-                        ],
-                    }),
-                    scene_tag_id_list,
-                });
-            } else {
-                info_list.push(PlayerWorldSceneInfo {
-                    is_locked: false,
-                    scene_id: *scene_id,
-                    map_layer_info: None,
-                    scene_tag_id_list,
-                });
+                if *scene_id == 3 {
+                    info_list.push(PlayerWorldSceneInfo {
+                        is_locked: false,
+                        scene_id: 3,
+                        map_layer_info: Some(MapLayerInfo {
+                            unlocked_map_layer_floor_id_list: Arc::clone(
+                                BIG_WORLD_MAP_LAYER_FLOOR_CONFIG.get().unwrap(),
+                            )
+                            .to_vec(),
+                            unlocked_map_layer_group_id_list: Arc::clone(
+                                BIG_WORLD_MAP_LAYER_GROUP_CONFIG.get().unwrap(),
+                            )
+                            .to_vec(),
+                            unlocked_map_layer_id_list: Arc::clone(
+                                BIG_WORLD_MAP_LAYER_CONFIG.get().unwrap(),
+                            )
+                            .to_vec(),
+                        }),
+                        scene_tag_id_list,
+                    });
+                } else if *scene_id == 101 {
+                    info_list.push(PlayerWorldSceneInfo {
+                        is_locked: false,
+                        scene_id: 101,
+                        map_layer_info: Some(MapLayerInfo {
+                            unlocked_map_layer_id_list: vec![
+                                1018000101, 1018000102, 1018000103, 1018000106, 1018000107,
+                                1018000108, 1018000109, 1018000110, 1018000111, 1018000112,
+                            ],
+                            unlocked_map_layer_group_id_list: vec![10180001],
+                            unlocked_map_layer_floor_id_list: vec![
+                                1018000101, 1018000102, 1018000110, 1018000111, 1018000112,
+                            ],
+                        }),
+                        scene_tag_id_list,
+                    });
+                } else if *scene_id == 103 {
+                    info_list.push(PlayerWorldSceneInfo {
+                        is_locked: false,
+                        scene_id: 103,
+                        map_layer_info: Some(MapLayerInfo {
+                            unlocked_map_layer_id_list: vec![
+                                101, 102, 103, 201, 301, 302, 401, 501, 502, 503, 601, 602, 603,
+                                604, 605, 606, 608, 609, 610, 611, 612, 613, 702, 901, 902,
+                            ],
+                            unlocked_map_layer_group_id_list: vec![1, 2, 3, 6, 9],
+                            unlocked_map_layer_floor_id_list: vec![
+                                101, 102, 103, 201, 301, 302, 401, 501, 502, 503, 602, 605, 608,
+                                610, 702, 901, 902,
+                            ],
+                        }),
+                        scene_tag_id_list,
+                    });
+                } else {
+                    info_list.push(PlayerWorldSceneInfo {
+                        is_locked: false,
+                        scene_id: *scene_id,
+                        map_layer_info: None,
+                        scene_tag_id_list,
+                    });
+                }
             }
         }
     });
