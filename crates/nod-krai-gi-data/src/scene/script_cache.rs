@@ -39,7 +39,6 @@ pub fn load_lua_vm(root: &str) {
     SCENE_LUA_VM.set(lua).unwrap();
 }
 
-
 pub fn register_all_enums(lua: &Lua) {
     // 你所有的枚举都在这里统一注册
     inject_enum::<EventType>(lua, "EventType").unwrap();
@@ -54,7 +53,6 @@ pub fn register_all_enums(lua: &Lua) {
     inject_enum::<QuestState>(lua, "QuestState").unwrap();
     inject_enum::<VisionLevelType>(lua, "VisionLevelType").unwrap();
 }
-
 
 fn load_lua_directory(root: &str) -> HashMap<String, String> {
     let mut map = HashMap::new();
@@ -200,6 +198,7 @@ pub fn scene_group_is_bad(group_id: u32) -> bool {
 }
 
 pub fn load_scene_group_from_cache(
+    lua_root: &str,
     lua: &Lua,
     scene_id: u32,
     block_id: u32,
@@ -208,7 +207,7 @@ pub fn load_scene_group_from_cache(
     let scene_group_collection_clone = Arc::clone(SCENE_GROUP_COLLECTION.get().unwrap());
 
     let Some(cache) = scene_group_collection_clone.get(&group_id) else {
-        let result = load_scene_group(lua, scene_id, block_id, group_id);
+        let result = load_scene_group(lua_root, lua, scene_id, block_id, group_id);
         scene_group_collection_clone.insert(group_id, result.clone());
         return result;
     };
@@ -216,6 +215,7 @@ pub fn load_scene_group_from_cache(
 }
 
 pub fn load_scene_group(
+    lua_root: &str,
     lua: &Lua,
     scene_id: u32,
     block_id: u32,
@@ -223,8 +223,29 @@ pub fn load_scene_group(
 ) -> Option<SceneGroupTemplate> {
     let globals = lua.globals();
 
-     let script_name = format!("scene{}_group{}", scene_id, group_id);
-     let env = globals.get::<mlua::Table>(script_name.clone()).ok()?;
+    let script_name = format!("scene{}_group{}", scene_id, group_id);
+
+    match globals.get::<mlua::Table>(script_name.clone()) {
+        Ok(_) => {}
+        Err(_) => {
+            let script_path = format!("{}/scene/{}/{}.lua", lua_root, scene_id, script_name);
+
+            let code = common::string_util::read_utf8_no_bom(&script_path).ok()?;
+            let code = code.replace("ScriptLib.", "ScriptLib:");
+
+            let env = lua.create_table().ok()?;
+            let mt = lua.create_table().ok()?;
+            mt.set("__index", globals.clone()).ok()?;
+            env.set_metatable(Some(mt)).ok()?;
+
+            let chunk = lua.load(&code).set_name(&script_name);
+            chunk.set_environment(env.clone()).exec().ok()?;
+
+            globals.set(script_name.clone(), env.clone()).ok()?;
+        }
+    }
+
+    let env = globals.get::<mlua::Table>(script_name.clone()).ok()?;
 
     // monsters
     let monsters = match lua.from_value(env.get::<Value>("monsters").ok()?) {

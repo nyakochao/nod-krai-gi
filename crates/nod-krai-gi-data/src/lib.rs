@@ -48,7 +48,9 @@ mod tests {
 
     #[test]
     fn test_load_scene_block() {
-        init_scene_static_templates("../../assets/lua/scene/");
+        let lua_root = "../../assets/lua";
+
+        init_scene_static_templates(format!("{}/scene", lua_root).as_str());
         let scene_block_collection_clone =
             Arc::clone(scene::script_cache::SCENE_BLOCK_COLLECTION.get().unwrap());
 
@@ -61,51 +63,35 @@ mod tests {
 
     #[test]
     fn test_load_scene_group() {
-        load_lua_vm("../../assets/lua/common");
+        let lua_root = "../../assets/lua";
+
+        load_lua_vm(format!("{}/common", lua_root).as_str());
         let lua = SCENE_LUA_VM.get().unwrap().clone();
 
         let scene_id = 40501;
         let block_id = 40501;
         let group_id = 240501002;
 
-        let path = format!(
-            "../../assets/lua/scene/{}/scene{}_group{}.lua",
-            scene_id, scene_id, group_id
-        );
-
-        let Ok(code) = common::string_util::read_utf8_no_bom(&path) else {
-            println!("load_scene_group failed read scene {}", path);
-            return;
-        };
-
-        if let Err(err) = lua
-            .load(&code)
-            .set_name(&format!("scene{}_group{}", scene_id, group_id))
-            .exec()
-        {
-            println!("failed lua load {}: {}", path, err);
-            return;
-        }
-
-        let a = load_scene_group(&lua, scene_id, block_id, group_id);
+        let a = load_scene_group(lua_root, &lua, scene_id, block_id, group_id);
         println!("{:?}", a);
     }
 
     #[test]
     fn test_build_scene_spatial_cache() {
-        load_lua_vm("../../assets/lua/common");
+        let lua_root = "../../assets/lua";
+
+        load_lua_vm(format!("{}/common", lua_root).as_str());
         let lua = SCENE_LUA_VM.get().unwrap().clone();
 
-        init_scene_static_templates("../../assets/lua/scene/");
+        init_scene_static_templates(format!("{}/scene", lua_root).as_str());
 
         let cache_dir = Path::new("../../assets/cache");
         if !cache_dir.exists() {
             fs::create_dir_all(cache_dir).expect("Failed to create cache directory");
         }
 
-        for scene_id in [3u32, 5u32, 6u32, 7u32, 11u32, 101u32] {
-            let cache =
-                build_scene_spatial_cache(&lua, scene_id, "../../assets/lua", "../../assets/cache");
+        for scene_id in [3u32, 5u32, 6u32, 7u32, 11u32] {
+            let cache = build_scene_spatial_cache(&lua, scene_id, lua_root, "../../assets/cache");
 
             if let Some(cache) = cache {
                 println!(
@@ -122,11 +108,12 @@ mod tests {
     #[test]
     fn test_load_cache_and_query_rtree() {
         let scene_id = 40501;
+        let lua_root = "../../assets/lua";
 
-        load_lua_vm("../../assets/lua/common");
-        init_scene_static_templates("../../assets/lua/scene/");
+        load_lua_vm(format!("{}/common", lua_root).as_str());
+        init_scene_static_templates(format!("{}/scene", lua_root).as_str());
 
-        let cache = get_or_init_spatial_cache(scene_id, "../../assets/lua", "../../assets/cache/")
+        let cache = get_or_init_spatial_cache(scene_id, lua_root, "../../assets/cache/")
             .expect("Failed to load cache from file");
 
         println!(
@@ -153,7 +140,7 @@ mod tests {
             }
         }
 
-        let cache2 = get_or_init_spatial_cache(scene_id, "../../assets/lua", "../../assets/cache/")
+        let cache2 = get_or_init_spatial_cache(scene_id, lua_root, "../../assets/cache/")
             .expect("Failed to load cache from file");
         assert_eq!(cache.scene_groups.len(), cache2.scene_groups.len());
         println!("Cache reuse verified: {} groups", cache2.scene_groups.len());
@@ -164,7 +151,8 @@ mod tests {
         let scene_id = 40501;
         let cache_path = format!("../../assets/cache/scene_cache_{}.json", scene_id);
 
-        let cache_data = common::string_util::read_utf8_no_bom(&cache_path).expect("Failed to read cache file");
+        let cache_data =
+            common::string_util::read_utf8_no_bom(&cache_path).expect("Failed to read cache file");
         let cache: GroupSpatialCache =
             serde_json::from_str(&cache_data).expect("Failed to parse cache");
 

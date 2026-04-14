@@ -33,6 +33,7 @@ pub struct Gadget {
     pub pos: Position,
     pub rot: Position,
     pub level: Option<u32>,
+    pub is_enable_interact: Option<bool>,
     pub vision_level: Option<VisionLevelType>,
     pub drop_tag: Option<String>,
     pub chest_drop_id: Option<u32>,

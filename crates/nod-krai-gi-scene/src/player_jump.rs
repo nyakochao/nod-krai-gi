@@ -186,16 +186,29 @@ pub fn player_enter_dungeon(
                 ));
 
                 if let Some(ref mut player_scene_bin) = player_info.scene_bin {
-                    if player_info.dungeon_bin.is_none() {
-                        player_info.dungeon_bin = Some(PlayerDungeonCompBin {
-                            cur_dungeon_id: *dungeon_id,
-                            is_has_quit_target_pos: true,
-                            quit_scene_id: player_scene_bin.my_cur_scene_id,
-                            quit_pos: player_scene_bin.my_cur_scene_pos,
-                            quit_rot: player_scene_bin.my_cur_scene_rot,
-                            ..Default::default()
-                        });
+                    match &player_info.dungeon_bin {
+                        None => {
+                            player_info.dungeon_bin = Some(PlayerDungeonCompBin {
+                                cur_dungeon_id: *dungeon_id,
+                                is_has_quit_target_pos: true,
+                                quit_scene_id: player_scene_bin.my_cur_scene_id,
+                                quit_pos: player_scene_bin.my_cur_scene_pos,
+                                quit_rot: player_scene_bin.my_cur_scene_rot,
+                                ..Default::default()
+                            });
+                        }
+                        Some(pre_data) => {
+                            player_info.dungeon_bin = Some(PlayerDungeonCompBin {
+                                cur_dungeon_id: *dungeon_id,
+                                is_has_quit_target_pos: true,
+                                quit_scene_id: pre_data.quit_scene_id,
+                                quit_pos: pre_data.quit_pos,
+                                quit_rot: pre_data.quit_rot,
+                                ..Default::default()
+                            });
+                        }
                     }
+
                     player_scene_bin.my_cur_scene_id = tran_scene_id;
                     player_scene_bin.my_cur_scene_pos = destination.into();
                 }

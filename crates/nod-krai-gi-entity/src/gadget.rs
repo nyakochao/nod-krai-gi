@@ -462,6 +462,7 @@ pub fn handle_gadget_interact(
                                     Some(dungeon_config) => {
                                         if dungeon_config.statue_drop != 0 {
                                             let drop_id = dungeon_config.statue_drop;
+                                            tracing::debug!("cur_dungeon_id is {}", player_dungeon_bin.cur_dungeon_id);
                                             tracing::debug!("drop_id is {}", drop_id);
                                             let drop_vec = resolve_drop(drop_id, 1);
                                             tracing::debug!("drop_vec is {:#?}", drop_vec);

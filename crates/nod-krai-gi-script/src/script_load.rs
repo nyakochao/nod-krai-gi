@@ -42,8 +42,10 @@ impl SceneGroupRuntime {
         let lua = &lua_vm.lua;
         let globals = lua.globals();
 
+        let lua_root = "./assets/lua";
+
         let script_name = format!("scene{}_group{}", scene_id, group_id);
-        let script_path = format!("./assets/lua/scene/{}/{}.lua", scene_id, script_name);
+        let script_path = format!("{}/scene/{}/{}.lua", lua_root, scene_id, script_name);
 
         let code = common::string_util::read_utf8_no_bom(&script_path).ok()?;
         let code = code.replace("ScriptLib.", "ScriptLib:");
@@ -58,7 +60,7 @@ impl SceneGroupRuntime {
 
         globals.set(script_name.clone(), env.clone()).ok()?;
 
-        let data = load_scene_group_from_cache(lua, scene_id, block_id, group_id)?;
+        let data = load_scene_group_from_cache(lua_root, &lua, scene_id, block_id, group_id)?;
 
         if data.triggers.is_empty() {
             let variables = data

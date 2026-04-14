@@ -19,7 +19,7 @@ pub trait ReliquaryLevelExcelConfigKeyed<K> {
 
 impl ReliquaryLevelExcelConfigKeyed<u32> for ReliquaryLevelExcelConfig {
     fn key(&self) -> u32 {
-        self.rank << 8 + self.level
+        (self.rank << 8) + self.level
     }
 
     fn load(excel_bin_output_path: &str) -> HashMap<u32, ReliquaryLevelExcelConfig> {

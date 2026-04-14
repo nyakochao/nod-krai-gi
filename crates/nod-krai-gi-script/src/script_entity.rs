@@ -5,12 +5,12 @@ use bevy_ecs::prelude::*;
 use common::player_cache::cache_get_scene_level;
 use nod_krai_gi_data::scene::group_entity_state_cache::get_group_entity_state_cache;
 use nod_krai_gi_data::scene::{EventType, GadgetState, LuaEvt};
+use nod_krai_gi_entity::EntityDisappearEvent;
 use nod_krai_gi_entity::common::{
     BlockId, ConfigId, EntityCounter, GroupId, ProtocolEntityID, ToBeRemovedMarker, Visible,
 };
 use nod_krai_gi_entity::gadget::spawn_gadget_entity;
 use nod_krai_gi_entity::monster::spawn_monster_entity;
-use nod_krai_gi_entity::EntityDisappearEvent;
 use nod_krai_gi_event::lua::{
     DespawnGroupEntityEvent, DespawnSuiteEntitiesEvent, LuaTriggerEvent, RefreshGroupEntityEvent,
     SpawnGroupEntityEvent, SpawnSuiteEntitiesEvent,
@@ -141,7 +141,7 @@ pub fn spawn_suite_entities(
                     },
                     gadget_id,
                     gadget.level.unwrap_or(90),
-                    is_interactive,
+                    gadget.is_enable_interact.unwrap_or(is_interactive),
                     None,
                     gadget.drop_tag.clone(),
                     gadget.chest_drop_id.unwrap_or(0),
@@ -370,7 +370,7 @@ pub fn spawn_group_entity(
                     },
                     gadget_id,
                     gadget.level.unwrap_or(90),
-                    is_interactive,
+                    gadget.is_enable_interact.unwrap_or(is_interactive),
                     gadget_content,
                     gadget.drop_tag.clone(),
                     gadget.chest_drop_id.unwrap_or(0),
@@ -594,7 +594,7 @@ pub fn refresh_group_entity(
                     },
                     gadget_id,
                     gadget.level.unwrap_or(90),
-                    is_interactive,
+                    gadget.is_enable_interact.unwrap_or(is_interactive),
                     gadget_content,
                     gadget.drop_tag.clone(),
                     gadget.chest_drop_id.unwrap_or(0),

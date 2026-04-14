@@ -13,6 +13,8 @@ pub struct ReliquaryExcelConfig {
     pub append_prop_num: u32,
     pub set_id: u32,
     pub add_prop_levels: Vec<u32>,
+    pub base_conv_exp: u32,
+    pub max_level: u32,
 
     pub rank: u32,
     pub rank_level: u32,

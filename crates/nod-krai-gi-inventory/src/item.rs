@@ -5,8 +5,9 @@ use common::gm_util::ItemAction;
 use nod_krai_gi_data::excel::common::ItemType;
 use nod_krai_gi_data::excel::{
     material_excel_config_collection, reliquary_affix_excel_config_collection,
-    reliquary_excel_config_collection, reliquary_main_prop_excel_config_collection,
-    weapon_excel_config_collection, ReliquaryAffixExcelConfig,
+    reliquary_excel_config_collection, reliquary_level_excel_config_collection,
+    reliquary_main_prop_excel_config_collection, weapon_excel_config_collection,
+    weapon_level_excel_config_collection, ReliquaryAffixExcelConfig,
 };
 use nod_krai_gi_data::prop_type::FightPropType;
 use nod_krai_gi_entity::common::{EntityCounter, Visible};
@@ -18,7 +19,7 @@ use nod_krai_gi_message::output::MessageOutput;
 use nod_krai_gi_persistence::Players;
 use nod_krai_gi_proto::normal::{
     equip, item, scene_gadget_info, Equip, Item, ItemAddHintNotify, ItemHint, Material, Reliquary,
-    StoreItemChangeNotify, StoreType, TrifleGadget, Weapon,
+    StoreItemChangeNotify, StoreItemDelNotify, StoreType, TrifleGadget, Weapon,
 };
 use nod_krai_gi_proto::server_only::{
     equip_bin, item_bin, EquipBin, ItemBin, MaterialBin, ReliquaryBin, VectorBin, WeaponBin,
@@ -91,7 +92,7 @@ pub fn item_add_handler(
         };
 
         let new_guid = player_info.next_guid();
-        let mut change_map: HashMap<u64, u32> = HashMap::new();
+        let mut change_map: HashMap<u64, i32> = HashMap::new();
         let Some(ref mut player_item_bin) = player_info.item_bin else {
             continue;
         };
@@ -144,7 +145,7 @@ pub fn item_add_handler(
                                 })),
                             },
                         );
-                        change_map.insert(new_guid, num.unwrap_or(1));
+                        change_map.insert(new_guid, num.unwrap_or(1) as i32);
                     } else {
                         let material_guid = guid.unwrap();
                         let Some(ref mut material_bin) =
@@ -157,7 +158,7 @@ pub fn item_add_handler(
                             continue;
                         };
                         detail.count += num.unwrap_or(1);
-                        change_map.insert(material_guid, num.unwrap_or(1));
+                        change_map.insert(material_guid, num.unwrap_or(1) as i32);
                     }
                 }
                 ItemType::RELIQUARY => {
@@ -174,7 +175,7 @@ pub fn item_add_handler(
                         }
                     };
 
-                    let Some(reliquary_main_prop_config) =
+                    let Some(_reliquary_main_prop_config) =
                         reliquary_main_prop_excel_config_collection_clone.get(&final_key)
                     else {
                         gm_notify_events.write(ConsoleChatNotifyEvent(
@@ -184,24 +185,35 @@ pub fn item_add_handler(
                         continue;
                     };
 
-                    let main_prop = reliquary_main_prop_config.prop_type;
-
-                    if !append_prop_id_list
-                        .keys()
-                        .all(|k| reliquary_affix_excel_config_collection_clone.contains_key(k))
-                    {
-                        gm_notify_events.write(ConsoleChatNotifyEvent(
-                            *player_uid,
-                            "append_prop_id not found".to_string(),
-                        ));
+                    let Some(reliquary_config) =
+                        reliquary_excel_config_collection_clone.get(item_id)
+                    else {
                         continue;
+                    };
+
+                    let rank_level = reliquary_config.rank_level;
+                    let level = level.unwrap_or_default().clamp(0, 20) + 1;
+
+                    let mut total_exp: u32 = 0;
+                    let level_config_map =
+                        std::sync::Arc::clone(reliquary_level_excel_config_collection::get());
+                    for lvl in 1..level {
+                        let level_key = (rank_level << 8) + lvl;
+                        if let Some(level_config) = level_config_map.get(&level_key) {
+                            total_exp += level_config.exp;
+                        }
                     }
+
+                    let main_prop_type = reliquary_main_prop_excel_config_collection_clone
+                        .get(final_key)
+                        .map(|cfg| cfg.prop_type)
+                        .unwrap_or_default();
 
                     let mut append_prop_id_list = expand_map_to_vec(append_prop_id_list);
                     if append_prop_id_list.is_empty() {
                         append_prop_id_list = pick_four_affix_ids(
                             &reliquary_affix_excel_config_collection_clone,
-                            main_prop,
+                            main_prop_type,
                             &mut rng,
                         );
                     }
@@ -218,13 +230,13 @@ pub fn item_add_handler(
                                 detail: Some(equip_bin::Detail::Reliquary(ReliquaryBin {
                                     main_prop_id: *final_key,
                                     append_prop_id_list,
-                                    level: level.unwrap_or_default().clamp(0, 20) + 1,
-                                    ..Default::default()
+                                    level,
+                                    exp: total_exp,
                                 })),
                             })),
                         },
                     );
-                    change_map.insert(new_guid, 1);
+                    change_map.insert(new_guid, 1 as i32);
                 }
                 ItemType::WEAPON => {
                     let Some(weapon_config) = weapon_excel_config_collection_clone.get(&item_id)
@@ -232,6 +244,20 @@ pub fn item_add_handler(
                         continue;
                     };
                     let level = level.unwrap_or(1).clamp(1, 100);
+                    let rank_level = weapon_config.rank_level;
+
+                    let mut total_exp: u32 = 0;
+                    let level_config_map =
+                        std::sync::Arc::clone(weapon_level_excel_config_collection::get());
+                    for lvl in 1..level {
+                        if let Some(level_config) = level_config_map.get(&lvl) {
+                            let rank_index = (rank_level as usize).saturating_sub(1);
+                            if rank_index < level_config.required_exps.len() {
+                                total_exp += level_config.required_exps[rank_index];
+                            }
+                        }
+                    }
+
                     let mut affix_map = HashMap::new();
                     weapon_config.skill_affix.iter().for_each(|affix| {
                         affix_map.insert(*affix, refinement.unwrap_or_default().clamp(1, 5) - 1);
@@ -249,12 +275,12 @@ pub fn item_add_handler(
                                     level,
                                     promote_level: get_min_promote_level(level),
                                     affix_map,
-                                    ..Default::default()
+                                    exp: total_exp,
                                 })),
                             })),
                         },
                     );
-                    change_map.insert(new_guid, 1);
+                    change_map.insert(new_guid, 1 as i32);
                 }
                 ItemType::DISPLAY => {}
                 ItemType::FURNITURE => {}
@@ -432,13 +458,13 @@ pub fn update_player_store(
     message_output: Res<MessageOutput>,
     players: Res<Players>,
 ) {
-    let mut merged: HashMap<u32, HashMap<u64, u32>> = HashMap::new();
+    let mut merged: HashMap<u32, HashMap<u64, i32>> = HashMap::new();
 
     for StoreItemChangeEvent(uid, map) in events.read() {
         let entry = merged.entry(*uid).or_insert_with(HashMap::new);
 
-        for (item_id, count) in map {
-            *entry.entry(*item_id).or_insert(0) += *count;
+        for (guid, delta) in map {
+            *entry.entry(*guid).or_insert(0) += *delta;
         }
     }
 
@@ -450,39 +476,64 @@ pub fn update_player_store(
             continue;
         };
 
-        message_output.send(
-            uid,
-            "StoreItemChangeNotify",
-            StoreItemChangeNotify {
-                store_type: StoreType::StorePack.into(),
-                item_list: player_item_bin
-                    .iter()
-                    .filter(|(guid, _)| final_map.contains_key(guid))
-                    .filter_map(|(_, item)| item.to_normal_proto())
-                    .collect(),
-                reason: 0,
-            },
-        );
-        message_output.send(
-            uid,
-            "ItemAddHintNotify",
-            ItemAddHintNotify {
-                item_list: player_item_bin
-                    .iter()
-                    .filter(|(guid, _)| {
-                        final_map.contains_key(guid)
-                            && final_map.get(guid).copied().unwrap_or(0) > 0
-                    })
-                    .map(|(guid, item)| ItemHint {
-                        count: final_map.get(guid).copied().unwrap_or(0),
-                        item_id: item.item_id,
-                        is_new: false,
-                        guid: *guid,
-                    })
-                    .collect(),
-                ..Default::default()
-            },
-        );
+        let change_guids: Vec<u64> = final_map
+            .keys()
+            .filter(|guid| player_item_bin.get_item(guid).is_some())
+            .cloned()
+            .collect();
+
+        let del_guids: Vec<u64> = final_map
+            .keys()
+            .filter(|guid| player_item_bin.get_item(guid).is_none())
+            .cloned()
+            .collect();
+
+        if !change_guids.is_empty() {
+            message_output.send(
+                uid,
+                "StoreItemChangeNotify",
+                StoreItemChangeNotify {
+                    store_type: StoreType::StorePack.into(),
+                    item_list: player_item_bin
+                        .iter()
+                        .filter(|(guid, _)| change_guids.contains(guid))
+                        .filter_map(|(_, item)| item.to_normal_proto())
+                        .collect(),
+                    reason: 0,
+                },
+            );
+            message_output.send(
+                uid,
+                "ItemAddHintNotify",
+                ItemAddHintNotify {
+                    item_list: player_item_bin
+                        .iter()
+                        .filter(|(guid, _)| {
+                            change_guids.contains(guid)
+                                && final_map.get(guid).copied().unwrap_or(0) > 0
+                        })
+                        .map(|(guid, item)| ItemHint {
+                            count: final_map.get(guid).copied().unwrap_or(0) as u32,
+                            item_id: item.item_id,
+                            is_new: false,
+                            guid: *guid,
+                        })
+                        .collect(),
+                    ..Default::default()
+                },
+            );
+        }
+
+        if !del_guids.is_empty() {
+            message_output.send(
+                uid,
+                "StoreItemDelNotify",
+                StoreItemDelNotify {
+                    guid_list: del_guids,
+                    store_type: StoreType::StorePack.into(),
+                },
+            );
+        }
     }
 }
 
@@ -511,6 +562,24 @@ pub fn get_min_promote_level(level: u32) -> u32 {
         1
     } else {
         0
+    }
+}
+
+pub fn get_max_level_by_promote_level(promote_level: u32) -> u32 {
+    if promote_level == 0 {
+        return 20;
+    } else if promote_level == 1 {
+        return 40;
+    } else if promote_level == 2 {
+        return 50;
+    } else if promote_level == 3 {
+        return 60;
+    } else if promote_level == 4 {
+        return 70;
+    } else if promote_level == 5 {
+        return 80;
+    } else {
+        return 100;
     }
 }
 
